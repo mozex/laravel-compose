@@ -20,7 +20,7 @@ it('maps a directory to the namespace composer autoloads it under', function ():
 });
 
 it('normalizes separators, dot segments, and drive letters', function (): void {
-    expect(NamespaceResolver::normalize('C:\\Work\\app\\Docker\\'))->toBe('C:/Work/app/Docker')
+    expect(NamespaceResolver::normalize('C:\\Sites\\app\\Docker\\'))->toBe('C:/Sites/app/Docker')
         ->and(NamespaceResolver::normalize('/srv/./app/../app/Docker'))->toBe('/srv/app/Docker')
         ->and(NamespaceResolver::normalize('relative/path/'))->toBe('relative/path');
 });
