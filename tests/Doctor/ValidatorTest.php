@@ -9,6 +9,11 @@ use Mozex\Compose\Doctor\Validator;
 use Mozex\Compose\Facades\Compose;
 use Mozex\Compose\StackRegistry;
 
+enum FixtureBind: string
+{
+    case Loopback = '127.0.0.1';
+}
+
 beforeEach(function (): void {
     config()->set('compose.stacks', []);
     config()->set('compose.discover', []);
@@ -147,6 +152,26 @@ it('warns about publishes on every interface, resolving the address through the 
         ->and($report->warnings()[0]->stack)->toBe('open')
         ->and($report->warnings()[0]->message)->toContain('Publishes on every interface: app: ${BIND:-0.0.0.0}:80:80')
         ->and($report->isClean())->toBeTrue();
+});
+
+it('resolves a publish address through a hand-written env file', function (): void {
+    $compose = "name: bound\nservices:\n    app:\n        image: alpine\n        ports:\n            - '\${BIND}:80:80'\n";
+    $stack = fakeStack(['name' => 'bound', 'compose' => $compose, 'environment' => []]);
+    File::put($stack->directory().'/.env', "BIND='127.0.0.1'\n");
+    Compose::register($stack);
+
+    expect(app(Validator::class)->run(withDaemon: false)->warnings())->toBe([]);
+
+    File::put($stack->directory().'/.env', "BIND=0.0.0.0\n");
+
+    expect(app(Validator::class)->run(withDaemon: false)->warnings()[0]->message)->toContain('Publishes on every interface: app: ${BIND}:80:80');
+});
+
+it('renders booleans and enums the way the env file will before interpolating', function (): void {
+    $compose = "name: typed\nservices:\n    app:\n        image: alpine\n        ports:\n            - '\${BIND:-0.0.0.0}:80:80'\n";
+    Compose::register(fakeStack(['name' => 'typed', 'compose' => $compose, 'environment' => ['BIND' => FixtureBind::Loopback, 'DEBUG' => false]]));
+
+    expect(app(Validator::class)->run(withDaemon: false)->warnings())->toBe([]);
 });
 
 it('notes disabled stacks and the master switch', function (): void {

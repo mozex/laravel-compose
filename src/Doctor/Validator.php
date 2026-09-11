@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Mozex\Compose\Doctor;
 
+use BackedEnum;
 use Illuminate\Contracts\Config\Repository;
 use Illuminate\Support\Facades\Process;
 use Mozex\Compose\Docker;
@@ -12,6 +13,7 @@ use Mozex\Compose\Stack;
 use Mozex\Compose\StackRegistry;
 use Mozex\Compose\Support\EnvFile;
 use Mozex\Compose\Support\OperatorLink;
+use Stringable;
 use Throwable;
 
 /**
@@ -133,16 +135,12 @@ class Validator
         }
 
         // A stack with nothing to write is fed by a file written by hand, the
-        // one a redeploy leaves alone; its keys count as provided.
+        // one a redeploy leaves alone; its variables count as provided.
         $handWritten = $this->envFile->isHandWritten($stack);
         $envPath = $this->envFile->pathFor($stack);
-        $provided = array_map('strval', array_keys($environment));
+        $strings = $handWritten ? EnvFile::parse((string) file_get_contents($envPath)) : $this->stringValues($environment);
 
-        if ($handWritten) {
-            $provided = [...$provided, ...EnvFile::keys((string) file_get_contents($envPath))];
-        }
-
-        $missing = array_values(array_diff($compose->requiredVariables(), $provided));
+        $missing = array_values(array_diff($compose->requiredVariables(), array_keys($strings)));
 
         if ($missing !== []) {
             $problems[] = Problem::error(
@@ -151,12 +149,6 @@ class Validator
                 .(count($missing) === 1 ? 'it' : 'them').'.',
                 $name,
             );
-        }
-
-        $strings = [];
-
-        foreach ($environment as $key => $value) {
-            $strings[(string) $key] = is_scalar($value) || $value === null ? (string) $value : '';
         }
 
         foreach ($compose->publicPublishes($strings) as $publish) {
@@ -367,6 +359,30 @@ class Validator
         }
 
         return $this->trim($output);
+    }
+
+    /**
+     * The environment as compose will read it back from the env file, for
+     * resolving `${VAR}` in the checks that interpolate.
+     *
+     * @param  array<string, mixed>  $environment
+     * @return array<string, string>
+     */
+    protected function stringValues(array $environment): array
+    {
+        $strings = [];
+
+        foreach ($environment as $key => $value) {
+            $strings[(string) $key] = match (true) {
+                $value === null => '',
+                is_bool($value) => $value ? 'true' : 'false',
+                $value instanceof BackedEnum => (string) $value->value,
+                is_scalar($value), $value instanceof Stringable => (string) $value,
+                default => '',
+            };
+        }
+
+        return $strings;
     }
 
     protected function user(): string

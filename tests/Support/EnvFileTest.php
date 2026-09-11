@@ -49,10 +49,38 @@ it('refuses keys, line breaks, and values it cannot represent', function (): voi
         ->toThrow(ComposeException::class, 'is a array');
 });
 
-it('lists the keys a hand-written file defines', function (): void {
-    expect(EnvFile::keys("# comment\nSECRET=abc\n\nexport PORT = 7700\n  SPACED='a b'\nSECRET=again\nnot a key\n1BAD=x\n"))
-        ->toBe(['SECRET', 'PORT', 'SPACED'])
-        ->and(EnvFile::keys(''))->toBe([]);
+it('reads a hand-written file with the quoting rules it writes', function (): void {
+    $contents = implode("\n", [
+        '# comment',
+        'SECRET=abc',
+        '',
+        'export PORT = 7700',
+        "SPACED='hello world # tag'",
+        'DOUBLE="it\'s \\"quoted\\" \\\\ $$5"',
+        'TRAILING=value # a comment',
+        'HASHED=value#kept',
+        'EMPTY=',
+        'SECRET=again',
+        'not a key',
+        '1BAD=x',
+        '',
+    ]);
+
+    expect(EnvFile::parse($contents))->toBe([
+        'SECRET' => 'again',
+        'PORT' => '7700',
+        'SPACED' => 'hello world # tag',
+        'DOUBLE' => 'it\'s "quoted" \\ $5',
+        'TRAILING' => 'value',
+        'HASHED' => 'value#kept',
+        'EMPTY' => '',
+    ])
+        ->and(EnvFile::keys($contents))->toBe(['SECRET', 'PORT', 'SPACED', 'DOUBLE', 'TRAILING', 'HASHED', 'EMPTY'])
+        ->and(EnvFile::parse(''))->toBe([]);
+
+    $values = ['A' => 'plain', 'B' => 'hello world', 'C' => "it's \"quoted\" \\ \$5", 'D' => ''];
+
+    expect(EnvFile::parse(EnvFile::render($values)))->toBe($values);
 });
 
 it('resolves the env path from config and knows a hand-written file', function (): void {

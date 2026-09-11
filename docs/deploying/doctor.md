@@ -23,7 +23,7 @@ The doctor is a preflight. Every check is something that broke a real deploy onc
 - `environment()` renders: valid keys, no line breaks, supported value types.
 - Every `${VAR}` the compose file consumes without a default is a key of `environment()`. A stack with nothing to write (a class-less one) is checked against the env file already in its directory instead, the one a redeploy leaves alone.
 - `docker compose config` accepts the file with the environment the stack would write. The env is passed through a temporary file, so the stack directory isn't touched. A stack with nothing to write is checked with its own env file.
-- No publish listens on every interface. Addresses given as `${BIND:-...}` are resolved through the stack's environment first, so a variable that resolves to `127.0.0.1` passes.
+- No publish listens on every interface. Addresses given as `${BIND:-...}` are resolved through the stack's environment first (or the hand-written env file, for a stack with nothing to write), so a variable that resolves to `127.0.0.1` passes.
 - For remote daemons, no bind mounts.
 - For local daemons with a link directory, the link can be created or refreshed by this user. When it can't, the warning names the directory that needs `chown` and the user to give it to. A directory with content sitting at the link path gets its own warning, since the redeploy leaves it alone.
 - The env file would be ignored by git, when the stack lives in a repository.
@@ -43,4 +43,4 @@ it('keeps every stack consistent with its compose file', function (): void {
 });
 ```
 
-`Report` exposes `errors()`, `warnings()`, `notes()`, `forStack($name)`, `isClean()`, and `hasWarnings()`. Each `Problem` has a `severity`, a `message`, and the `stack` it belongs to, or null for host-level findings.
+`Report` exposes `errors()`, `warnings()`, `notes()`, `forStack($name)`, `isClean()`, `hasWarnings()`, and `lines()`, which is every error and warning as one string each for an assertion message. Each `Problem` has a `severity`, a `message`, and the `stack` it belongs to, or null for host-level findings.

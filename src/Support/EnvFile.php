@@ -50,22 +50,50 @@ class EnvFile
     }
 
     /**
-     * The variable names an env file defines, in file order. Comments, blank
-     * lines, and an `export` prefix are skipped; values are not parsed.
+     * The variable names an env file defines, in file order.
      *
      * @return list<string>
      */
     public static function keys(string $contents): array
     {
-        $keys = [];
+        return array_keys(static::parse($contents));
+    }
+
+    /**
+     * The variables an env file defines, read with the same quoting rules
+     * quote() writes: a single-quoted value is literal, a double-quoted one
+     * unescapes `\"`, `\\`, and `$$`, and an unquoted one stops at ` #`.
+     * Comments, blank lines, and an `export` prefix are skipped. A key
+     * defined twice keeps its last value, as Compose does.
+     *
+     * @return array<string, string>
+     */
+    public static function parse(string $contents): array
+    {
+        $values = [];
 
         foreach (preg_split('/\r?\n/', $contents) ?: [] as $line) {
-            if (preg_match('/^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=/', $line, $match) === 1) {
-                $keys[] = $match[1];
+            if (preg_match('/^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=(.*)$/', $line, $match) !== 1) {
+                continue;
             }
+
+            $values[$match[1]] = static::unquote(trim($match[2]));
         }
 
-        return array_values(array_unique($keys));
+        return $values;
+    }
+
+    protected static function unquote(string $value): string
+    {
+        if (strlen($value) >= 2 && $value[0] === "'" && str_ends_with($value, "'")) {
+            return substr($value, 1, -1);
+        }
+
+        if (strlen($value) >= 2 && $value[0] === '"' && str_ends_with($value, '"')) {
+            return str_replace(['\\"', '\\\\', '$$'], ['"', '\\', '$'], substr($value, 1, -1));
+        }
+
+        return trim((string) preg_replace('/\s#.*$/', '', $value));
     }
 
     /**
