@@ -48,6 +48,14 @@ class DownCommand extends Command
         $failed = false;
 
         foreach ($stacks as $name => $stack) {
+            // A stack disabled on this host has nothing running here; skip it
+            // unless it was named explicitly, in which case the operator means it.
+            if ($only === null && ! $stack->enabled()) {
+                $this->components->warn("Stack [{$name}] is not enabled on this host. Skipped.");
+
+                continue;
+            }
+
             $result = $docker->down($stack, $volumes, fn (string $type, string $buffer) => $this->output->write($buffer));
 
             if ($result->failed()) {

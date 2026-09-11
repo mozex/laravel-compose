@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Mozex\Compose\Doctor;
 
 use Illuminate\Contracts\Config\Repository;
+use Illuminate\Support\Facades\Process;
 use Mozex\Compose\Docker;
 use Mozex\Compose\Exceptions\ComposeException;
 use Mozex\Compose\Stack;
@@ -168,8 +169,62 @@ class Validator
             $this->checkLink($stack, $problems);
         }
 
+        $this->checkEnvFileIgnored($stack, $problems);
+
         if ($withDaemon && $missing === []) {
             $this->checkComposeConfig($stack, $rendered, $problems);
+        }
+    }
+
+    /**
+     * The env file carries secrets and sits inside the working tree. When the
+     * stack lives in a git repository, git itself is asked whether the file
+     * would be ignored; a `.env` line in the app's root .gitignore already
+     * covers every directory, which is why most apps pass without doing a thing.
+     *
+     * @param  list<Problem>  $problems
+     */
+    protected function checkEnvFileIgnored(Stack $stack, array &$problems): void
+    {
+        $directory = $stack->directory();
+
+        if (! $this->insideGitRepository($directory)) {
+            return;
+        }
+
+        $file = $this->config->get('compose.env_file', '.env');
+        $envPath = $directory.DIRECTORY_SEPARATOR.(is_string($file) && $file !== '' ? $file : '.env');
+        $result = Process::path($directory)->timeout(10)->run(['git', 'check-ignore', '--quiet', $envPath]);
+
+        // Exit 1 means "not ignored"; anything else (git missing, not a repo)
+        // is not this check's concern.
+        if ($result->exitCode() !== 1) {
+            return;
+        }
+
+        $problems[] = Problem::warning(
+            "The env file [{$envPath}] is not ignored by git, so a redeploy would leave secrets in the working tree ready to be committed. "
+            .'Add its name to a .gitignore.',
+            $stack->name(),
+        );
+    }
+
+    protected function insideGitRepository(string $directory): bool
+    {
+        $current = $directory;
+
+        while (true) {
+            if (file_exists($current.DIRECTORY_SEPARATOR.'.git')) {
+                return true;
+            }
+
+            $parent = dirname($current);
+
+            if ($parent === $current) {
+                return false;
+            }
+
+            $current = $parent;
         }
     }
 

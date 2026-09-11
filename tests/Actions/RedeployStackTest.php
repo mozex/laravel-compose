@@ -46,7 +46,12 @@ it('skips every stack when the master switch is off', function (): void {
 });
 
 it('writes the env file, pulls, sweeps stale containers, and recreates the stack in that order', function (): void {
-    Process::fake();
+    $sequence = [];
+    Process::fake(function (PendingProcess $process) use (&$sequence) {
+        $sequence[] = [$process->command, $process->timeout, $process->path];
+
+        return Process::result();
+    });
     Event::fake();
     $stack = fakeStack([
         'name' => 'meili',
@@ -56,13 +61,13 @@ it('writes the env file, pulls, sweeps stale containers, and recreates the stack
     $prefix = composePrefix($stack);
 
     expect(app(RedeployStack::class)->execute($stack))->toBe(RedeployResult::Redeployed)
-        ->and(File::get($stack->directory().'/.env'))->toBe("MEILISEARCH_PORT=7700\nMEILISEARCH_KEY='secret value'\n");
+        ->and(File::get($stack->directory().'/.env'))->toBe("MEILISEARCH_PORT=7700\nMEILISEARCH_KEY='secret value'\n")
+        ->and($sequence)->toBe([
+            [[...$prefix, 'pull', '--ignore-buildable', '--quiet'], 300, $stack->directory()],
+            [['docker', 'rm', '-f', 'meili-a', 'meili-b'], 30, null],
+            [[...$prefix, 'up', '--detach', '--remove-orphans'], 120, $stack->directory()],
+        ]);
 
-    Process::assertRanInOrder([
-        fn (PendingProcess $process): bool => $process->command === [...$prefix, 'pull', '--ignore-buildable', '--quiet'] && $process->timeout === 300,
-        fn (PendingProcess $process): bool => $process->command === ['docker', 'rm', '-f', 'meili-a', 'meili-b'] && $process->timeout === 30,
-        fn (PendingProcess $process): bool => $process->command === [...$prefix, 'up', '--detach', '--remove-orphans'] && $process->timeout === 120 && $process->path === $stack->directory(),
-    ]);
     Event::assertDispatched(StackRedeployedEvent::class, fn (StackRedeployedEvent $event): bool => $event->stack === $stack);
 });
 

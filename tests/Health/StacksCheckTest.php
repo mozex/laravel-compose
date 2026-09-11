@@ -30,8 +30,8 @@ it('passes when every enabled stack runs and reports each one in the meta', func
 
 it('fails when an enabled stack is down or was never created', function (): void {
     Process::fake([
-        '*--project-name gone*' => Process::result(''),
-        '*--project-name dead*' => Process::result(containerRow('exited', '', 1)),
+        '*--project-name*gone*' => Process::result(''),
+        '*--project-name*dead*' => Process::result(containerRow('exited', '', 1)),
         '*' => Process::result(containerRow('running')),
     ]);
     Compose::register(fakeStack(['name' => 'gone']))->register(fakeStack(['name' => 'dead']))->register(fakeStack(['name' => 'fine']));

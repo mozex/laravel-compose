@@ -37,8 +37,17 @@ class StatusCommand extends Command
         $allRunning = true;
 
         foreach ($stacks as $name => $stack) {
-            $status = $stack->status();
             $enabled = $stack->enabled();
+
+            // A disabled stack is not asked about: on a host without Docker the
+            // question itself would fail.
+            if (! $enabled && $only === null) {
+                $rows[] = [$name, '-', '-', 'disabled', '-', '-'];
+
+                continue;
+            }
+
+            $status = $stack->status();
 
             if ($status->isEmpty()) {
                 $rows[] = [$name, '-', '-', $enabled ? 'not created' : 'disabled', '-', '-'];

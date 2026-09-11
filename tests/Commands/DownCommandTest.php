@@ -31,6 +31,22 @@ it('stops every stack, or only the named one', function (): void {
     Process::assertRanTimes(fn (PendingProcess $process): bool => in_array('down', $process->command, true) && in_array('one', $process->command, true), 1);
 });
 
+it('skips disabled stacks unless one is named explicitly', function (): void {
+    Process::fake();
+    Compose::register(fakeStack(['name' => 'on']))->register(fakeStack(['name' => 'off', 'enabled' => false]));
+
+    artisan('compose:down')
+        ->expectsOutputToContain('Stack [off] is not enabled on this host. Skipped.')
+        ->expectsOutputToContain('Stack [on] stopped.')
+        ->assertSuccessful();
+
+    Process::assertNotRan(fn (PendingProcess $process): bool => in_array('off', $process->command, true));
+
+    artisan('compose:down', ['stack' => 'off'])->expectsOutputToContain('Stack [off] stopped.')->assertSuccessful();
+
+    Process::assertRan(fn (PendingProcess $process): bool => in_array('off', $process->command, true) && in_array('down', $process->command, true));
+});
+
 it('asks before removing volumes and honours --force', function (): void {
     Process::fake();
     Compose::register(fakeStack(['name' => 'data']));

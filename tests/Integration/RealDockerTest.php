@@ -34,6 +34,7 @@ beforeEach(function (): void {
     $this->name = 'laravel-compose-it-'.getmypid().'-'.substr(uniqid(), -6);
     $this->stack = fakeStack([
         'name' => $this->name,
+        'wait' => 30,
         'environment' => ['GREETING' => 'hello from laravel-compose', 'SLEEP' => 120],
         'compose' => implode("\n", [
             "name: {$this->name}",
@@ -70,7 +71,6 @@ it('redeploys, reports status and logs, and tears down a real stack', function (
     // A stale container under a foreign project context must not wedge `up`.
     Process::timeout(120)->run(['docker', 'run', '--detach', '--name', $this->name.'-app', 'alpine:3', 'sleep', '60']);
 
-    $stack->wait();
     $result = app(RedeployStack::class)->execute($stack, function (string $type, string $buffer): void {
         // Streamed compose output; nothing to assert on its exact wording.
     });
@@ -78,12 +78,8 @@ it('redeploys, reports status and logs, and tears down a real stack', function (
     expect($result)->toBe(RedeployResult::Redeployed)
         ->and(File::get($stack->directory().'/.env'))->toBe("GREETING='hello from laravel-compose'\nSLEEP=120\n");
 
-    $deadline = microtime(true) + 30;
-
-    do {
-        $status = $stack->status();
-        usleep(500_000);
-    } while (! $status->isHealthy() && microtime(true) < $deadline);
+    // `up --wait` returned, so the healthcheck already passed once.
+    $status = $stack->status();
 
     expect($status->isRunning())->toBeTrue(json_encode($status))
         ->and($status->isHealthy())->toBeTrue(json_encode($status))

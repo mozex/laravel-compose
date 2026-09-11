@@ -17,9 +17,9 @@ beforeEach(function (): void {
 function healthyDaemon(): void
 {
     Process::fake([
-        '*version --format*' => Process::result('29.0.1'),
-        '*compose version*' => Process::result('2.40.0'),
-        '*info --format*' => Process::result('29.0.1'),
+        '*version*--format*' => Process::result('29.0.1'),
+        '*compose*version*' => Process::result('2.40.0'),
+        '*info*--format*' => Process::result('29.0.1'),
         '*' => Process::result(''),
     ]);
 }
@@ -52,9 +52,9 @@ it('stops at a docker binary that cannot run', function (): void {
 
 it('flags a missing compose plugin and an unreachable daemon, with the docker-group hint', function (): void {
     Process::fake([
-        '*version --format*' => Process::result('29.0.1'),
-        '*compose version*' => Process::result('', 'unknown command', 1),
-        '*info --format*' => Process::result('', 'permission denied while trying to connect to the Docker daemon socket', 1),
+        '*version*--format*' => Process::result('29.0.1'),
+        '*compose*version*' => Process::result('', 'unknown command', 1),
+        '*info*--format*' => Process::result('', 'permission denied while trying to connect to the Docker daemon socket', 1),
     ]);
 
     $errors = array_map(fn ($problem) => $problem->message, app(Validator::class)->run()->errors());
@@ -65,9 +65,9 @@ it('flags a missing compose plugin and an unreachable daemon, with the docker-gr
         ->and($errors[1])->toContain('sudo usermod -aG docker');
 
     Process::fake([
-        '*version --format*' => Process::result('29.0.1'),
-        '*compose version*' => Process::result('2.40.0'),
-        '*info --format*' => Process::result('', 'Cannot connect to the Docker daemon', 1),
+        '*version*--format*' => Process::result('29.0.1'),
+        '*compose*version*' => Process::result('2.40.0'),
+        '*info*--format*' => Process::result('', 'Cannot connect to the Docker daemon', 1),
     ]);
 
     expect(app(Validator::class)->run()->errors()[0]->message)->toBe('The Docker daemon is not reachable: Cannot connect to the Docker daemon');
@@ -164,7 +164,7 @@ it('reports a registry failure instead of throwing', function (): void {
 
 it('lets compose validate the file with the environment the stack would write', function (): void {
     Process::fake([
-        '*config --quiet*' => Process::result('', 'service "app" has neither an image nor a build context', 1),
+        '*config*--quiet*' => Process::result('', 'service "app" has neither an image nor a build context', 1),
         '*' => Process::result('ok'),
     ]);
     $stack = fakeStack(['name' => 'checked', 'environment' => ['KEY' => 'value']]);
@@ -205,6 +205,33 @@ it('warns when the link directory cannot be written by this user', function (): 
     } finally {
         chmod($locked, 0700);
     }
+});
+
+it('warns when git would not ignore the env file, and stays quiet outside a repository', function (): void {
+    Process::fake(['*git*check-ignore*' => Process::result(exitCode: 1)]);
+    $tracked = fakeStack(['name' => 'tracked']);
+    File::ensureDirectoryExists($tracked->directory().'/.git');
+    $loose = fakeStack(['name' => 'loose']);
+    Compose::register($tracked)->register($loose);
+
+    $report = app(Validator::class)->run(withDaemon: false);
+
+    expect($report->warnings())->toHaveCount(1)
+        ->and($report->warnings()[0]->stack)->toBe('tracked')
+        ->and($report->warnings()[0]->message)->toContain('is not ignored by git');
+
+    Process::assertRan(fn (PendingProcess $process): bool => $process->command === ['git', 'check-ignore', '--quiet', $tracked->directory().DIRECTORY_SEPARATOR.'.env']
+        && $process->path === $tracked->directory());
+    Process::assertNotRan(fn (PendingProcess $process): bool => $process->command[0] === 'git' && $process->path === $loose->directory());
+});
+
+it('accepts an env file git already ignores', function (): void {
+    Process::fake(['*git*check-ignore*' => Process::result(exitCode: 0)]);
+    $stack = fakeStack(['name' => 'ignored']);
+    File::ensureDirectoryExists($stack->directory().'/.git');
+    Compose::register($stack);
+
+    expect(app(Validator::class)->run(withDaemon: false)->hasWarnings())->toBeFalse();
 });
 
 it('is reachable through the facade', function (): void {

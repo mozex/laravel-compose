@@ -46,6 +46,9 @@
         "phpstan/phpstan-phpunit": "^2.0",
         "spatie/laravel-health": "^1.40"
     },
+    "suggest": {
+        "spatie/laravel-health": "Adds a StacksCheck that fails when a stack this app owns is down"
+    },
     "autoload": {
         "psr-4": {
             "Mozex\\Compose\\": "src/"

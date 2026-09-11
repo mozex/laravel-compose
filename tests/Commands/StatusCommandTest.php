@@ -42,6 +42,17 @@ it('fails when an enabled stack has no containers but passes for a disabled one'
         ->assertSuccessful();
 });
 
+it('does not ask docker about disabled stacks in the overview', function (): void {
+    Process::fake(['*' => Process::result('')]);
+    Compose::register(fakeStack(['name' => 'off', 'enabled' => false]));
+
+    artisan('compose:status')
+        ->expectsTable(['Stack', 'Service', 'Container', 'State', 'Health', 'Ports'], [['off', '-', '-', 'disabled', '-', '-']])
+        ->assertSuccessful();
+
+    Process::assertNothingRan();
+});
+
 it('fails when a container crashed', function (): void {
     Process::fake(['*' => Process::result('{"Name":"x","Service":"app","State":"exited","Health":"","Status":"Exited (1)","ExitCode":1,"Publishers":[]}')]);
     Compose::register(fakeStack(['name' => 'crashed']));
