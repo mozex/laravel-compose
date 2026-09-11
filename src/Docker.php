@@ -39,7 +39,9 @@ class Docker
     }
 
     /**
-     * Whether commands for this stack reach a daemon on another machine.
+     * Whether commands for this stack reach a daemon on another machine. A
+     * local socket and the `default` context are this machine; anything
+     * else named explicitly is treated as remote.
      */
     public function isRemote(?Stack $stack = null): bool
     {
@@ -49,7 +51,9 @@ class Docker
             return true;
         }
 
-        return $this->context($stack) !== null;
+        $context = $this->context($stack);
+
+        return $context !== null && $context !== 'default';
     }
 
     /**

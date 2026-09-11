@@ -45,7 +45,8 @@ it('knows when a stack targets a daemon on another machine', function (): void {
         ->and($docker->isRemote(fakeStack(['host' => 'npipe:////./pipe/docker_engine'])))->toBeFalse()
         ->and($docker->isRemote(fakeStack(['host' => 'ssh://deploy@box'])))->toBeTrue()
         ->and($docker->isRemote(fakeStack(['host' => 'tcp://box:2376'])))->toBeTrue()
-        ->and($docker->isRemote(fakeStack(['context' => 'remote'])))->toBeTrue();
+        ->and($docker->isRemote(fakeStack(['context' => 'remote'])))->toBeTrue()
+        ->and($docker->isRemote(fakeStack(['context' => 'default'])))->toBeFalse();
 
     config()->set('compose.docker.context', 'remote');
     expect($docker->isRemote())->toBeTrue();

@@ -21,7 +21,7 @@ Or name a docker context you created with `docker context create`:
 COMPOSE_DOCKER_CONTEXT=docker-box
 ```
 
-A single stack can override either through `host()` or `context()`, so one app can run a search index locally and a browser farm elsewhere.
+A single stack can override either through `host()` or `context()`, so one app can run a search index locally and a browser farm elsewhere. A `unix://` or `npipe://` host and the `default` context still count as the local machine.
 
 ## What changes
 
