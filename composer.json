@@ -56,8 +56,7 @@
     },
     "autoload-dev": {
         "psr-4": {
-            "Mozex\\Compose\\Tests\\": "tests/",
-            "Workbench\\App\\": "workbench/app/"
+            "Mozex\\Compose\\Tests\\": "tests/"
         }
     },
     "scripts": {

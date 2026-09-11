@@ -26,8 +26,15 @@ class EnvFile
         $contents = static::render($environment, $stack);
 
         $this->files->ensureDirectoryExists(dirname($path));
-        $this->files->put($path, $contents, true);
+
+        // Create the file empty and lock it down before a secret lands in it,
+        // so it is never readable by others, not even between two calls.
+        if (! $this->files->exists($path)) {
+            $this->files->put($path, '');
+        }
+
         $this->files->chmod($path, 0600);
+        $this->files->put($path, $contents, true);
     }
 
     /**

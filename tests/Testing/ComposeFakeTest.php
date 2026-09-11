@@ -49,7 +49,8 @@ it('can force a failure and respects the master switch', function (): void {
     Compose::register(fakeStack(['name' => 'flaky']))->register(fakeStack(['name' => 'fine']));
     $fake->shouldFail('flaky');
 
-    expect(Compose::redeploy('flaky'))->toBe(['flaky' => RedeployResult::Failed]);
+    expect(Compose::redeploy('flaky'))->toBe(['flaky' => RedeployResult::Failed])
+        ->and(Compose::redeploy('flaky'))->toBe(['flaky' => RedeployResult::Redeployed]);
 
     config()->set('compose.enabled', false);
 

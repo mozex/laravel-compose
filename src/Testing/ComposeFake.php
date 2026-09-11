@@ -48,6 +48,7 @@ class ComposeFake extends Compose
                 default => RedeployResult::Redeployed,
             };
 
+            unset($this->forced[$name]);
             $this->results[$name] = $results[$name];
         }
 
