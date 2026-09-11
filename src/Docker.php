@@ -9,6 +9,8 @@ use Illuminate\Contracts\Config\Repository;
 use Illuminate\Contracts\Process\ProcessResult;
 use Illuminate\Process\Exceptions\ProcessTimedOutException;
 use Illuminate\Support\Facades\Process;
+use Mozex\Compose\Exceptions\ComposeException;
+use Mozex\Compose\Support\EnvFile;
 use Mozex\Compose\Support\StackStatus;
 
 /**
@@ -19,7 +21,10 @@ use Mozex\Compose\Support\StackStatus;
  */
 class Docker
 {
-    public function __construct(protected Repository $config) {}
+    public function __construct(
+        protected Repository $config,
+        protected EnvFile $envFile,
+    ) {}
 
     public function binary(): string
     {
@@ -30,30 +35,55 @@ class Docker
 
     public function host(?Stack $stack = null): ?string
     {
-        return $this->blankToNull($stack?->host()) ?? $this->blankToNull($this->config->get('compose.docker.host'));
+        return $this->target($stack)['host'];
     }
 
     public function context(?Stack $stack = null): ?string
     {
-        return $this->blankToNull($stack?->context()) ?? $this->blankToNull($this->config->get('compose.docker.context'));
+        return $this->target($stack)['context'];
     }
 
     /**
-     * Whether commands for this stack reach a daemon on another machine. A
-     * local socket and the `default` context are this machine; anything
-     * else named explicitly is treated as remote.
+     * Whether commands for this stack reach a daemon on another machine: a
+     * named context, or a host that is not a local socket.
      */
     public function isRemote(?Stack $stack = null): bool
     {
-        $host = $this->host($stack);
+        $target = $this->target($stack);
 
-        if ($host !== null && ! str_starts_with($host, 'unix://') && ! str_starts_with($host, 'npipe://')) {
+        if ($target['context'] !== null) {
             return true;
         }
 
-        $context = $this->context($stack);
+        $host = $target['host'];
 
-        return $context !== null && $context !== 'default';
+        return $host !== null && ! str_starts_with($host, 'unix://') && ! str_starts_with($host, 'npipe://');
+    }
+
+    /**
+     * The daemon a stack's commands go to. A stack's own host() or context()
+     * replaces both global values, never one of them. At either level a
+     * context beside a host wins, which is Docker's own rule (`--context`
+     * overrides DOCKER_HOST), so the host is dropped rather than passed and
+     * ignored. The `default` context is the local daemon, the same as none.
+     *
+     * @return array{host: string|null, context: string|null}
+     */
+    protected function target(?Stack $stack): array
+    {
+        $host = $this->blankToNull($stack?->host());
+        $context = $this->blankToNull($stack?->context());
+
+        if ($host === null && $context === null) {
+            $host = $this->blankToNull($this->config->get('compose.docker.host'));
+            $context = $this->blankToNull($this->config->get('compose.docker.context'));
+        }
+
+        if ($context === 'default') {
+            $context = null;
+        }
+
+        return ['host' => $context === null ? $host : null, 'context' => $context];
     }
 
     /**
@@ -129,6 +159,15 @@ class Docker
             '--file', $stack->composePath(),
         ];
 
+        // Compose reads {project-directory}/.env on its own. A file under any
+        // other name has to be named, or every ${VAR} in the file resolves empty.
+        $envFile = $this->envFile->pathFor($stack);
+
+        if ($this->envFile->name() !== '.env' && is_file($envFile)) {
+            $command[] = '--env-file';
+            $command[] = $envFile;
+        }
+
         foreach ($stack->profiles() as $profile) {
             $command[] = '--profile';
             $command[] = $profile;
@@ -149,6 +188,10 @@ class Docker
      */
     public function logs(Stack $stack, ?string $service = null, int|string $tail = 100, ?Closure $output = null): string
     {
+        if (is_string($tail) && $tail !== 'all' && preg_match('/^\d+$/', $tail) !== 1) {
+            throw ComposeException::invalidLogTail($tail);
+        }
+
         $arguments = ['logs', '--no-color', '--tail', $tail === 'all' ? 'all' : (string) max(0, (int) $tail)];
 
         if ($service !== null) {

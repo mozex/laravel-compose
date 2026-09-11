@@ -3,7 +3,7 @@ title: Environment Files
 weight: 3
 ---
 
-Before every redeploy, the package writes `environment()` into the stack directory as `.env` (the name is configurable through `env_file`). Compose reads that file when it interpolates `${VAR}` in the compose file, and only then. Nothing else in the app reads it.
+Before every redeploy, the package writes `environment()` into the stack directory as `.env`. Compose reads that file when it interpolates `${VAR}` in the compose file, and only then. Nothing else in the app reads it. The name is configurable through `env_file`; a name other than `.env` is handed to compose as `--env-file` on every call.
 
 ## Why the file is generated
 

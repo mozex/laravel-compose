@@ -24,13 +24,21 @@ class EnvFile
     ) {}
 
     /**
-     * The env file inside the stack directory, named by the `env_file` config.
+     * The configured env file name, `.env` unless `env_file` says otherwise.
      */
-    public function pathFor(Stack $stack): string
+    public function name(): string
     {
         $file = $this->config->get('compose.env_file', '.env');
 
-        return $stack->directory().DIRECTORY_SEPARATOR.(is_string($file) && $file !== '' ? $file : '.env');
+        return is_string($file) && trim($file) !== '' ? trim($file) : '.env';
+    }
+
+    /**
+     * The env file inside the stack directory.
+     */
+    public function pathFor(Stack $stack): string
+    {
+        return $stack->directory().DIRECTORY_SEPARATOR.$this->name();
     }
 
     /**
@@ -83,14 +91,18 @@ class EnvFile
         return $values;
     }
 
+    /**
+     * A quoted value ends at its closing quote; whatever follows (a comment,
+     * usually) is dropped, as Compose does.
+     */
     protected static function unquote(string $value): string
     {
-        if (strlen($value) >= 2 && $value[0] === "'" && str_ends_with($value, "'")) {
-            return substr($value, 1, -1);
+        if (preg_match("/^'([^']*)'/", $value, $match) === 1) {
+            return $match[1];
         }
 
-        if (strlen($value) >= 2 && $value[0] === '"' && str_ends_with($value, '"')) {
-            return str_replace(['\\"', '\\\\', '$$'], ['"', '\\', '$'], substr($value, 1, -1));
+        if (preg_match('/^"((?:[^"\\\\]|\\\\.)*)"/', $value, $match) === 1) {
+            return str_replace(['\\"', '\\\\', '$$'], ['"', '\\', '$'], $match[1]);
         }
 
         return trim((string) preg_replace('/\s#.*$/', '', $value));

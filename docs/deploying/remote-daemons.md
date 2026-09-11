@@ -21,7 +21,7 @@ Or name a docker context you created with `docker context create`:
 COMPOSE_DOCKER_CONTEXT=docker-box
 ```
 
-A single stack can override either through `host()` or `context()`, so one app can run a search index locally and a browser farm elsewhere. A `unix://` or `npipe://` host and the `default` context still count as the local machine.
+A single stack can override through `host()` or `context()`, so one app can run a search index locally and a browser farm elsewhere. A stack that sets either one replaces both global values, so a stack `host()` under a global context talks to that host, not the context. When a host and a context meet at the same level, the context wins and the host is dropped; that's Docker's own rule (`--context` overrides `DOCKER_HOST`), applied before the command runs instead of silently by the CLI. A `unix://` or `npipe://` host and the `default` context still count as the local machine.
 
 ## What changes
 

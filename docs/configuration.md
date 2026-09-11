@@ -66,7 +66,7 @@ A `DOCKER_HOST` value or a docker context name for a [remote daemon](deploying/r
 
 ## `env_file`
 
-The name of the generated env file inside each stack directory. Compose reads `.env` by default; change this only if your compose files point at another file.
+The name of the generated env file inside each stack directory. Compose reads `.env` on its own; any other name is passed to every compose call as `--env-file` once the file exists, and `compose:make` puts it in the stack's `.gitignore`.
 
 ## `timeouts`
 

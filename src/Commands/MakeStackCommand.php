@@ -10,6 +10,7 @@ use Illuminate\Filesystem\Filesystem;
 use Illuminate\Support\Str;
 use Mozex\Compose\Exceptions\ComposeException;
 use Mozex\Compose\Stack;
+use Mozex\Compose\Support\EnvFile;
 use Mozex\Compose\Support\NamespaceResolver;
 
 class MakeStackCommand extends Command
@@ -20,7 +21,7 @@ class MakeStackCommand extends Command
 
     protected $description = 'Scaffold a Docker Compose stack: a compose file and the Stack class beside it';
 
-    public function handle(Repository $config, Filesystem $files, NamespaceResolver $namespaces): int
+    public function handle(Repository $config, Filesystem $files, NamespaceResolver $namespaces, EnvFile $envFile): int
     {
         /** @var string $name */
         $name = $this->argument('name');
@@ -55,6 +56,7 @@ class MakeStackCommand extends Command
             '{{ slug }}' => $slug,
             '{{ upper }}' => strtoupper(str_replace('-', '_', $slug)),
             '{{ project }}' => $this->appSlug($config).'-'.$slug,
+            '{{ env_file }}' => $envFile->name(),
         ];
 
         $files->ensureDirectoryExists($directory);

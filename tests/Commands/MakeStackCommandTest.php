@@ -35,6 +35,14 @@ it('scaffolds a stack class, a compose file, and a gitignore under the first dis
         ->and(File::get($directory.'/.gitignore'))->toBe(".env\n");
 });
 
+it('puts the configured env file name in the gitignore', function (): void {
+    config()->set('compose.env_file', '.env.stack');
+
+    artisan('compose:make', ['name' => 'meilisearch'])->assertSuccessful();
+
+    expect(File::get($this->root.'/Meilisearch/.gitignore'))->toBe(".env.stack\n");
+});
+
 it('falls back to a plain app prefix when the app has no usable name', function (): void {
     config()->set('app.name', '');
 

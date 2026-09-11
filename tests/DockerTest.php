@@ -7,6 +7,7 @@ use Illuminate\Process\PendingProcess;
 use Illuminate\Process\ProcessResult;
 use Illuminate\Support\Facades\Process;
 use Mozex\Compose\Docker;
+use Mozex\Compose\Exceptions\ComposeException;
 use Symfony\Component\Process\Exception\ProcessTimedOutException as SymfonyTimedOutException;
 use Symfony\Component\Process\Process as SymfonyProcess;
 
@@ -50,6 +51,34 @@ it('knows when a stack targets a daemon on another machine', function (): void {
 
     config()->set('compose.docker.context', 'remote');
     expect($docker->isRemote())->toBeTrue();
+});
+
+it('lets a stack replace both global values and drops a host beside a context', function (): void {
+    $docker = app(Docker::class);
+    config()->set('compose.docker.context', 'production');
+
+    // A stack host alone means the local context, so `--context` is not passed and DOCKER_HOST is.
+    $stack = fakeStack(['host' => 'ssh://deploy@box']);
+
+    expect($docker->command(['ps'], $stack))->toBe(['docker', 'ps'])
+        ->and($docker->environment($stack))->toBe(['DOCKER_HOST' => 'ssh://deploy@box'])
+        ->and($docker->isRemote($stack))->toBeTrue();
+
+    // Docker ignores DOCKER_HOST when --context is given, so the host is dropped rather than passed.
+    config()->set('compose.docker.host', 'tcp://box:2376');
+
+    expect($docker->command(['ps']))->toBe(['docker', '--context', 'production', 'ps'])
+        ->and($docker->environment())->toBe([])
+        ->and($docker->environment(fakeStack(['host' => 'tcp://other:2376', 'context' => 'staging'])))->toBe([])
+        ->and($docker->isRemote(fakeStack(['host' => 'tcp://other:2376', 'context' => 'default'])))->toBeTrue();
+});
+
+it('refuses a log tail that is neither a number nor all', function (): void {
+    Process::fake();
+
+    expect(fn () => app(Docker::class)->logs(fakeStack(), tail: 'lots'))->toThrow(ComposeException::class, 'not [lots]');
+
+    Process::assertNothingRan();
 });
 
 it('names the project, directory, file, and profiles on every compose call', function (): void {

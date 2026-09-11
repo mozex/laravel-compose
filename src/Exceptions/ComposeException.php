@@ -104,6 +104,11 @@ class ComposeException extends RuntimeException
         return new self("The stack directory [{$directory}] already exists.");
     }
 
+    public static function invalidLogTail(string $tail): self
+    {
+        return new self("The log tail must be a number of lines or `all`, not [{$tail}].");
+    }
+
     public static function unusableStackName(string $name): self
     {
         return new self("[{$name}] cannot be turned into a stack name and a class name. Use a name that starts with a letter.");
