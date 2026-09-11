@@ -14,7 +14,7 @@ class LogsCommand extends Command
     protected $signature = 'compose:logs
         {stack : The stack to read logs from}
         {--service= : Only this service}
-        {--tail=100 : Number of lines to show from the end of each log}
+        {--tail=100 : Number of lines to show from the end of each log, or `all`}
         {--follow : Keep streaming new output}';
 
     protected $description = 'Show the logs of a Docker Compose stack this app owns';
@@ -31,7 +31,15 @@ class LogsCommand extends Command
             return self::FAILURE;
         }
 
-        $arguments = ['logs', '--no-color', '--tail', (string) max(0, (int) $this->option('tail'))];
+        $tail = trim((string) $this->option('tail'));
+
+        if ($tail !== 'all' && preg_match('/^\d+$/', $tail) !== 1) {
+            $this->components->error("The --tail option takes a number of lines or `all`, not [{$tail}].");
+
+            return self::FAILURE;
+        }
+
+        $arguments = ['logs', '--no-color', '--tail', $tail];
 
         if ($this->option('follow')) {
             $arguments[] = '--follow';

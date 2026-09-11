@@ -35,6 +35,19 @@ it('follows without a timeout and fails when compose fails', function (): void {
         && $process->timeout === null);
 });
 
+it('accepts all as a tail and rejects anything that is not a number', function (): void {
+    Process::fake();
+    Compose::register(fakeStack(['name' => 'meili']));
+
+    artisan('compose:logs', ['stack' => 'meili', '--tail' => 'all'])->assertSuccessful();
+
+    Process::assertRan(fn (PendingProcess $process): bool => array_slice($process->command, -2) === ['--tail', 'all']);
+
+    artisan('compose:logs', ['stack' => 'meili', '--tail' => '20O'])
+        ->expectsOutputToContain('takes a number of lines or `all`, not [20O]')
+        ->assertFailed();
+});
+
 it('reports an unknown stack', function (): void {
     Process::fake();
 
