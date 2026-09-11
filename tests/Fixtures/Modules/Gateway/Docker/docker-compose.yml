@@ -1,0 +1,46 @@
+name: rdp-gateway
+
+services:
+    init:
+        image: alpine:3
+        container_name: rdp-gateway-init
+        restart: "no"
+        command: sh -c "chown -R 1000:1000 /drive"
+        volumes:
+            - 'gateway-drive:/drive'
+
+    guacd:
+        image: guacamole/guacd:1.6.0
+        container_name: rdp-gateway-guacd
+        restart: unless-stopped
+        environment:
+            LOG_LEVEL: ${GATEWAY_LOG_LEVEL:-error}
+
+    guacamole:
+        image: guacamole/guacamole:1.6.0
+        container_name: rdp-gateway-guacamole
+        restart: unless-stopped
+        ports:
+            - '127.0.0.1:${GATEWAY_PORT:-8989}:8080'
+        environment:
+            JSON_SECRET_KEY: ${GATEWAY_SECRET}
+
+    caddy:
+        image: caddy:2-alpine
+        container_name: rdp-gateway-caddy
+        profiles:
+            - tls
+        ports:
+            - target: 443
+              published: ${GATEWAY_TLS_PORT:-8443}
+        environment:
+            GATEWAY_DOMAIN: $GATEWAY_DOMAIN
+        volumes:
+            - './Caddyfile:/etc/caddy/Caddyfile:ro'
+            - type: bind
+              source: /var/log/gateway
+              target: /var/log/caddy
+
+volumes:
+    gateway-drive:
+        driver: local

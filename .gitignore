@@ -7,3 +7,5 @@ phpunit.xml
 phpstan.neon
 vendor
 node_modules
+
+tests/Fixtures/**/.env

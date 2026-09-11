@@ -1,0 +1,5 @@
+name: twin
+
+services:
+    app:
+        image: alpine:3

@@ -1,0 +1,4 @@
+{$GATEWAY_DOMAIN} {
+	tls internal
+	reverse_proxy guacamole:8080
+}
