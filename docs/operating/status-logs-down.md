@@ -33,7 +33,7 @@ php artisan compose:logs meilisearch --service=meilisearch --tail=500
 php artisan compose:logs rdp-gateway --follow
 ```
 
-`--tail` defaults to 100 lines per container. `--follow` streams until you stop it.
+`--tail` defaults to 100 lines per container and accepts `all`. `--follow` streams until you stop it.
 
 ## Down
 

@@ -9,7 +9,7 @@ Before every redeploy, the package writes `environment()` into the stack directo
 
 Your app already has one source of truth for its settings, and secrets shared between the app and a container (a Meilisearch master key, a gateway's signing secret) must never drift between the two. So the stack class reads config, the config reads the app's own `.env`, and the container env file is an output. A value only has to change in one place, and the next deploy applies it.
 
-The other side of that coin: never edit the generated file by hand on the server. The next redeploy overwrites it, silently.
+The other side of that coin: never edit the generated file by hand on the server. The next redeploy overwrites it, silently. The one exception is a stack whose `environment()` is empty (a class-less one, for instance): with nothing to write, an existing file is left as it is.
 
 ## What can go in it
 

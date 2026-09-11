@@ -19,6 +19,7 @@ The doctor is a preflight. Every check is something that broke a real deploy onc
 ## Per-stack checks
 
 - The compose file parses.
+- A `Stack` class found in the directory can be autoloaded. When it can't, the stack silently runs class-less, and the warning names the class.
 - `environment()` renders: valid keys, no line breaks, supported value types.
 - Every `${VAR}` the compose file consumes without a default is a key of `environment()`.
 - `docker compose config` accepts the file with the environment the stack would write. The env is passed through a temporary file, so the stack directory isn't touched.

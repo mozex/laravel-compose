@@ -33,7 +33,10 @@ Dependency flow: Commands -> Compose/Docker/Validator -> Stack/Registry -> Suppo
 ## Key design decisions
 
 - **The redeploy order is not negotiable.** Env before `up` (compose reads it then), `pull` before the `rm -f` sweep (old container serves during the download, registry outage still redeploys), sweep before `up` (a fixed `container_name` created under another project context wedges `up` with a name conflict). Pull and rm results are ignored on purpose.
-- **Everything runs through the `Process` facade** so `Process::fake()` and `Compose::fake()` see all of it. Never reach for Symfony Process directly.
+- **Everything runs through the `Process` facade** so `Process::fake()` and `Compose::fake()` see all of it. Never reach for Symfony Process directly. `Docker::run()` turns a `ProcessTimedOutException` into a failed result, so a stalled step never escapes as an exception.
+- **Names are global on a host.** The scaffolder prefixes the project and container names with the app slug (`{app}-{stack}`) so two apps on one server can't sweep each other's containers. Hand-written compose files are the user's call; the docs explain the trade-off.
+- **An empty `environment()` never overwrites an existing env file.** Class-less stacks are fed by hand-written files, so `RedeployStack::writeEnvironment()` leaves a non-empty file alone when there is nothing to write.
+- **Unloadable Stack classes are tracked, not swallowed.** `StackRegistry::unloadableClasses()` records classes the class-map scan found but PHP couldn't autoload; the doctor warns per stack.
 - **Compose project name and directory are always explicit** (`--project-name`, `--project-directory`, `--file`) so two stacks in directories both called `Docker` cannot collide.
 - **Defaults come from the compose file**, not from duplicated PHP: `name:` and `container_name:` are parsed, and the doctor checks every non-defaulted `${VAR}` against `environment()`. That replaces a hand-written parity test.
 - **Class-less stacks are valid.** A directory with a compose file and no class is a `DiscoveredStack`; compose-side `${VAR:-default}` carries the knobs.

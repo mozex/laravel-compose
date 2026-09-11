@@ -95,13 +95,14 @@ volumes:
 ```
 
 - Give every service a `container_name`. Publish on `127.0.0.1` (or a private address), never `0.0.0.0` or a bare `7700:7700`.
+- Project and container names are global on the host. When several apps share a server, prefix both with the app (`shop-meilisearch`); `compose:make` writes `{app}-{stack}` names by default.
 - Add a healthcheck; `wait()`, `compose:status`, and the health check read it.
 - Prefer named volumes. A bind mount of a stack-local file pins the container to the release directory and cannot work on a remote daemon.
 - Production-only sidecars go behind `profiles: [tls]` and `profiles()` on the class.
 
 ## Deploying
 
-`php artisan compose:redeploy` writes the env file, refreshes the operator link, builds if asked, pulls (result ignored), force-removes the fixed container names (result ignored), then runs `compose up --detach --remove-orphans` (`--wait` when the stack waits). Exit 1 if any stack failed. The order is deliberate; do not reorder or "simplify" it.
+`php artisan compose:redeploy` writes the env file (a stack with an empty `environment()` leaves an existing file alone), refreshes the operator link, builds if asked, pulls (result ignored), force-removes the fixed container names (result ignored), then runs `compose up --detach --remove-orphans` (`--wait` when the stack waits). A step past its timeout counts as failed, nothing worse. Exit 1 if any stack failed. The order is deliberate; do not reorder or "simplify" it.
 
 Put it in the deploy script after the release is built and before anything that talks to a container: first entry of a Composer `deploy:after` script, a Forge deploy-script line after `migrate --force`, an Envoyer "Activate New Release" hook. `--dry-run` prints the plan without running anything.
 
@@ -114,7 +115,7 @@ Remote daemon: `COMPOSE_DOCKER_HOST=ssh://user@host` or `COMPOSE_DOCKER_CONTEXT=
 ```bash
 php artisan compose:doctor              # preflight: binary, plugin, daemon, docker group, every compose file, ${VAR} coverage, public publishes, link directory, gitignore
 php artisan compose:status              # table per container; exit 1 when an enabled stack is not running
-php artisan compose:logs meilisearch --tail=200 --follow
+php artisan compose:logs meilisearch --tail=200 --follow   # --tail=all for everything
 php artisan compose:down meilisearch --volumes   # asks; --force for scripts
 ```
 
