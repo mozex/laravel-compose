@@ -242,7 +242,7 @@ class Validator
         $parent = dirname($path);
 
         if (file_exists($path) || is_link($path)) {
-            if (@readlink($path) === false && is_dir($path) && count((array) scandir($path)) > 2) {
+            if ($this->isRealDirectory($path) && count((array) scandir($path)) > 2) {
                 $problems[] = Problem::warning(
                     "The operator link path [{$path}] is a directory with content, not a link. The redeploy leaves it alone and "
                     .'skips the link; move the content away so the link can take its place.',
@@ -309,6 +309,22 @@ class Validator
         } finally {
             @unlink($envFile);
         }
+    }
+
+    /**
+     * A directory that is neither a symlink nor a junction. readlink returns
+     * false for a plain directory on Linux and the directory's own path on
+     * Windows, and a junction's target on both.
+     */
+    protected function isRealDirectory(string $path): bool
+    {
+        if (! is_dir($path) || is_link($path)) {
+            return false;
+        }
+
+        $target = @readlink($path);
+
+        return $target === false || rtrim(str_replace('\\', '/', $target), '/') === rtrim(str_replace('\\', '/', $path), '/');
     }
 
     protected function user(): string
