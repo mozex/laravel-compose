@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Mozex\Compose\Support;
 
+use Closure;
 use Mozex\Compose\Exceptions\ComposeException;
 use Symfony\Component\Yaml\Exception\ParseException;
 use Symfony\Component\Yaml\Yaml;
@@ -26,7 +27,6 @@ class ComposeFile
     public function __construct(
         protected string $path,
         protected array $data,
-        protected string $raw,
     ) {}
 
     public static function load(string $path): self
@@ -35,10 +35,8 @@ class ComposeFile
             throw ComposeException::missingComposeFile(dirname($path));
         }
 
-        $raw = (string) file_get_contents($path);
-
         try {
-            $data = Yaml::parse($raw);
+            $data = Yaml::parse((string) file_get_contents($path));
         } catch (ParseException $exception) {
             throw ComposeException::invalidComposeFile($path, $exception);
         }
@@ -48,7 +46,7 @@ class ComposeFile
         }
 
         /** @var array<string, mixed> $data */
-        return new self($path, $data, $raw);
+        return new self($path, $data);
     }
 
     /**
@@ -133,32 +131,21 @@ class ComposeFile
 
     /**
      * Variables the file consumes without a default, so they must be written
-     * by the stack's environment(). `${VAR:-x}`, `${VAR-x}`, `${VAR:+x}`, and
-     * `${VAR+x}` carry their own fallback and are not listed; `$$` is Compose's
-     * escaped dollar and is ignored.
+     * by the stack's environment(). Only string values of the parsed document
+     * are scanned, so a commented-out line doesn't count. `${VAR:-x}`,
+     * `${VAR-x}`, `${VAR:+x}`, and `${VAR+x}` carry their own fallback and are
+     * not listed, but a variable used inside that fallback is; `$$` is
+     * Compose's escaped dollar and is ignored.
      *
      * @return list<string>
      */
     public function requiredVariables(): array
     {
-        preg_match_all(
-            '/(?<!\$)\$(?:\{([A-Za-z_][A-Za-z0-9_]*)(?:(:?[-+?])[^}]*)?\}|([A-Za-z_][A-Za-z0-9_]*))/',
-            str_replace('$$', '', $this->raw),
-            $matches,
-            PREG_SET_ORDER | PREG_UNMATCHED_AS_NULL,
-        );
-
         $required = [];
 
-        foreach ($matches as $match) {
-            $name = $match[1] ?? $match[3];
-
-            if ($name === null || in_array($match[2], ['-', ':-', '+', ':+'], true)) {
-                continue;
-            }
-
-            $required[] = $name;
-        }
+        $this->eachString($this->data, function (string $value) use (&$required): void {
+            $this->collectRequired($value, $required);
+        });
 
         $required = array_values(array_unique($required));
         sort($required);
@@ -243,6 +230,8 @@ class ComposeFile
             $ports = $service['ports'] ?? [];
 
             foreach (is_array($ports) ? $ports : [] as $port) {
+                $port = $this->normalizePort($port);
+
                 if ($this->publishesEverywhere($port, $environment)) {
                     $public[] = $name.': '.$this->describePort($port);
                 }
@@ -253,36 +242,203 @@ class ComposeFile
     }
 
     /**
-     * Resolve `${VAR}`, `${VAR:-default}`, `${VAR-default}`, and `$VAR` the way
-     * Compose does, with the given values standing in for the env file.
+     * Every `${VAR...}` and `$VAR` reference in a string, outermost first,
+     * with nested references inside a fallback left for the caller to scan.
+     *
+     * @return list<array{name: string, operator: string, argument: string}>
+     */
+    public static function variables(string $text): array
+    {
+        $found = [];
+        $length = strlen($text);
+        $position = 0;
+
+        while (($position = strpos($text, '$', $position)) !== false) {
+            $next = $text[$position + 1] ?? '';
+
+            if ($next === '$') {
+                $position += 2;
+
+                continue;
+            }
+
+            if ($next === '{') {
+                $close = static::matchingBrace($text, $position + 1);
+
+                if ($close === null) {
+                    break;
+                }
+
+                $reference = static::parseReference(substr($text, $position + 2, $close - $position - 2));
+
+                if ($reference !== null) {
+                    $found[] = $reference;
+                }
+
+                $position = $close + 1;
+
+                continue;
+            }
+
+            if (preg_match('/^[A-Za-z_][A-Za-z0-9_]*/', substr($text, $position + 1), $match) === 1) {
+                $found[] = ['name' => $match[0], 'operator' => '', 'argument' => ''];
+                $position += 1 + strlen($match[0]);
+
+                continue;
+            }
+
+            $position++;
+        }
+
+        return $found;
+    }
+
+    /**
+     * Resolve `${VAR}`, `${VAR:-default}`, `${VAR-default}`, `${VAR:+alt}`,
+     * `${VAR+alt}`, and `$VAR` the way Compose does, with the given values
+     * standing in for the env file. Fallbacks may nest.
      *
      * @param  array<string, string>  $environment
      */
     public static function interpolate(string $value, array $environment): string
     {
-        $result = preg_replace_callback(
-            '/(?<!\$)\$(?:\{([A-Za-z_][A-Za-z0-9_]*)(?:(:?[-+?])([^}]*))?\}|([A-Za-z_][A-Za-z0-9_]*))/',
-            function (array $match) use ($environment): string {
-                $name = $match[1] ?? $match[4] ?? '';
-                $argument = $match[3] ?? '';
-                $set = array_key_exists($name, $environment);
-                $filled = $set && $environment[$name] !== '';
+        $result = '';
+        $length = strlen($value);
+        $position = 0;
 
-                return match ($match[2] ?? '') {
-                    '-' => $set ? $environment[$name] : $argument,
-                    ':-' => $filled ? $environment[$name] : $argument,
-                    '+' => $set ? $argument : '',
-                    ':+' => $filled ? $argument : '',
-                    default => $environment[$name] ?? '',
-                };
-            },
-            $value,
-            -1,
-            $count,
-            PREG_UNMATCHED_AS_NULL,
-        );
+        while ($position < $length) {
+            $character = $value[$position];
 
-        return str_replace('$$', '$', (string) $result);
+            if ($character !== '$') {
+                $result .= $character;
+                $position++;
+
+                continue;
+            }
+
+            $next = $value[$position + 1] ?? '';
+
+            if ($next === '$') {
+                $result .= '$';
+                $position += 2;
+
+                continue;
+            }
+
+            $close = $next === '{' ? static::matchingBrace($value, $position + 1) : null;
+
+            if ($close !== null) {
+                $reference = static::parseReference(substr($value, $position + 2, $close - $position - 2));
+
+                if ($reference !== null) {
+                    $result .= static::resolve($reference, $environment);
+                    $position = $close + 1;
+
+                    continue;
+                }
+            }
+
+            if (preg_match('/^[A-Za-z_][A-Za-z0-9_]*/', substr($value, $position + 1), $match) === 1) {
+                $result .= $environment[$match[0]] ?? '';
+                $position += 1 + strlen($match[0]);
+
+                continue;
+            }
+
+            $result .= '$';
+            $position++;
+        }
+
+        return $result;
+    }
+
+    /**
+     * @param  array{name: string, operator: string, argument: string}  $reference
+     * @param  array<string, string>  $environment
+     */
+    protected static function resolve(array $reference, array $environment): string
+    {
+        $name = $reference['name'];
+        $set = array_key_exists($name, $environment);
+        $filled = $set && $environment[$name] !== '';
+        $fallback = fn (): string => static::interpolate($reference['argument'], $environment);
+
+        return match ($reference['operator']) {
+            '-' => $set ? $environment[$name] : $fallback(),
+            ':-' => $filled ? $environment[$name] : $fallback(),
+            '+' => $set ? $fallback() : '',
+            ':+' => $filled ? $fallback() : '',
+            default => $environment[$name] ?? '',
+        };
+    }
+
+    /**
+     * @return array{name: string, operator: string, argument: string}|null
+     */
+    protected static function parseReference(string $inner): ?array
+    {
+        if (preg_match('/^([A-Za-z_][A-Za-z0-9_]*)(?:(:?[-+?])(.*))?$/s', $inner, $match) !== 1) {
+            return null;
+        }
+
+        return ['name' => $match[1], 'operator' => $match[2] ?? '', 'argument' => $match[3] ?? ''];
+    }
+
+    /**
+     * Index of the `}` closing the `{` at the given position, or null.
+     */
+    protected static function matchingBrace(string $text, int $open): ?int
+    {
+        $depth = 0;
+        $length = strlen($text);
+
+        for ($index = $open; $index < $length; $index++) {
+            if ($text[$index] === '{') {
+                $depth++;
+            }
+
+            if ($text[$index] === '}' && --$depth === 0) {
+                return $index;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  list<string>  $required
+     */
+    protected function collectRequired(string $text, array &$required): void
+    {
+        foreach (static::variables($text) as $variable) {
+            if (in_array($variable['operator'], ['-', ':-', '+', ':+'], true)) {
+                $this->collectRequired($variable['argument'], $required);
+
+                continue;
+            }
+
+            $required[] = $variable['name'];
+        }
+    }
+
+    /**
+     * @param  Closure(string): void  $callback
+     */
+    protected function eachString(mixed $value, Closure $callback): void
+    {
+        if (is_string($value)) {
+            $callback($value);
+
+            return;
+        }
+
+        if (! is_array($value)) {
+            return;
+        }
+
+        foreach ($value as $item) {
+            $this->eachString($item, $callback);
+        }
     }
 
     protected function bindMountSource(mixed $volume): ?string
@@ -294,17 +450,40 @@ class ComposeFile
             return $type === 'bind' && is_string($source) ? $source : null;
         }
 
-        if (! is_string($volume) || ! str_contains($volume, ':')) {
+        if (! is_string($volume)) {
+            return null;
+        }
+
+        // A Windows source carries its own colon: C:\data:/data.
+        if (preg_match('/^[A-Za-z]:[\\\\\/]/', $volume) === 1) {
+            $parts = explode(':', $volume, 3);
+
+            return count($parts) === 3 ? $parts[0].':'.$parts[1] : null;
+        }
+
+        if (! str_contains($volume, ':')) {
             return null;
         }
 
         $source = explode(':', $volume, 2)[0];
 
-        if (preg_match('/^(\.|\/|~|[A-Za-z]:[\\\\\/]|\$)/', $source) !== 1) {
-            return null;
+        return preg_match('/^(\.|\/|~|\$)/', $source) === 1 ? $source : null;
+    }
+
+    /**
+     * YAML reads an unquoted `- 8000:8000` as a one-entry mapping; turn it
+     * back into the string Compose would have seen.
+     */
+    protected function normalizePort(mixed $port): mixed
+    {
+        if (! is_array($port) || count($port) !== 1 || isset($port['target']) || isset($port['published'])) {
+            return $port;
         }
 
-        return $source;
+        $key = array_key_first($port);
+        $value = $port[$key];
+
+        return is_scalar($value) ? $key.':'.$value : $port;
     }
 
     /**

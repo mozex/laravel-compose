@@ -63,16 +63,50 @@ it('treats escaped dollars and error-style expansions correctly', function (): v
     expect(ComposeFile::load($directory.'/compose.yaml')->requiredVariables())->toBe(['ALSO', 'MUST']);
 });
 
+it('ignores commented-out references and looks inside nested fallbacks', function (): void {
+    $directory = temporaryDirectory();
+    File::put($directory.'/compose.yaml', implode("\n", [
+        'services:',
+        '    app:',
+        '        image: alpine',
+        '        # ports:',
+        "        #     - '\${OLD_PORT}:80'",
+        '        environment:',
+        '            BIND: ${BIND:-${DEFAULT_BIND:-127.0.0.1}}',
+        '            KEY: ${KEY:-${SHARED_KEY}}',
+        '            PLAIN: $PLAIN_VAR',
+    ]));
+
+    expect(ComposeFile::load($directory.'/compose.yaml')->requiredVariables())->toBe(['PLAIN_VAR', 'SHARED_KEY']);
+});
+
+it('lists every reference in a string, outermost first', function (): void {
+    expect(ComposeFile::variables('${A:-${B}} $C $$D ${E'))->toBe([
+        ['name' => 'A', 'operator' => ':-', 'argument' => '${B}'],
+        ['name' => 'C', 'operator' => '', 'argument' => ''],
+    ]);
+});
+
 it('reports profiles, build steps, and bind mounts', function (): void {
     $gateway = ComposeFile::load(fixturesPath('Modules/Gateway/Docker/docker-compose.yml'));
     $directory = temporaryDirectory();
-    File::put($directory.'/compose.yaml', "services:\n    app:\n        build: .\n");
+    File::put($directory.'/compose.yaml', implode("\n", [
+        'services:',
+        '    app:',
+        '        build: .',
+        '        volumes:',
+        "            - 'C:\\data:/data'",
+        "            - 'named:/named'",
+        "            - '~/home:/home'",
+    ]));
+    $windows = ComposeFile::load($directory.'/compose.yaml');
 
     expect($gateway->profiles())->toBe(['tls'])
         ->and($gateway->hasBuildSteps())->toBeFalse()
         ->and($gateway->bindMounts())->toBe(['./Caddyfile', '/var/log/gateway'])
-        ->and(ComposeFile::load($directory.'/compose.yaml')->hasBuildSteps())->toBeTrue()
-        ->and(ComposeFile::load($directory.'/compose.yaml')->profiles())->toBe([]);
+        ->and($windows->hasBuildSteps())->toBeTrue()
+        ->and($windows->profiles())->toBe([])
+        ->and($windows->bindMounts())->toBe(['C:\\data', '~/home']);
 });
 
 it('flags publishes that listen on every interface', function (): void {
@@ -93,6 +127,7 @@ it('resolves the host address through the stack environment before judging a pub
         "            - '\${BIND:-0.0.0.0}:80:80'",
         "            - '[::]:81:81'",
         '            - 3000',
+        '            - 8000:8000',
         '            - target: 90',
         '              published: 9090',
         "              host_ip: '127.0.0.1'",
@@ -100,8 +135,8 @@ it('resolves the host address through the stack environment before judging a pub
 
     $compose = ComposeFile::load($directory.'/compose.yaml');
 
-    expect($compose->publicPublishes())->toBe(['app: ${BIND:-0.0.0.0}:80:80', 'app: [::]:81:81', 'app: 3000'])
-        ->and($compose->publicPublishes(['BIND' => '127.0.0.1']))->toBe(['app: [::]:81:81', 'app: 3000']);
+    expect($compose->publicPublishes())->toBe(['app: ${BIND:-0.0.0.0}:80:80', 'app: [::]:81:81', 'app: 3000', 'app: 8000:8000'])
+        ->and($compose->publicPublishes(['BIND' => '127.0.0.1']))->toBe(['app: [::]:81:81', 'app: 3000', 'app: 8000:8000']);
 });
 
 it('interpolates variables the way compose does', function (): void {
@@ -117,5 +152,9 @@ it('interpolates variables the way compose does', function (): void {
         ->and(ComposeFile::interpolate('${EMPTY:+alt}', $environment))->toBe('')
         ->and(ComposeFile::interpolate('${EMPTY+alt}', $environment))->toBe('alt')
         ->and(ComposeFile::interpolate('$$SET', $environment))->toBe('$SET')
-        ->and(ComposeFile::interpolate('a-${SET}-b', $environment))->toBe('a-value-b');
+        ->and(ComposeFile::interpolate('a-${SET}-b', $environment))->toBe('a-value-b')
+        ->and(ComposeFile::interpolate('${MISSING:-${SET}}', $environment))->toBe('value')
+        ->and(ComposeFile::interpolate('${MISSING:-${ALSO_MISSING:-deep}}', $environment))->toBe('deep')
+        ->and(ComposeFile::interpolate('${DOLLARS}', ['DOLLARS' => 'a$$b']))->toBe('a$$b')
+        ->and(ComposeFile::interpolate('${UNCLOSED', $environment))->toBe('${UNCLOSED');
 });
