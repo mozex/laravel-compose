@@ -83,6 +83,28 @@ it('remembers classes it found but could not load', function (): void {
         ->and($registry->unloadableClasses())->toBe([$directory => ['Nowhere\\Mapped\\OrphanStack']]);
 });
 
+it('only looks for stack classes directly in the stack directory', function (): void {
+    $directory = temporaryDirectory();
+    File::put($directory.'/docker-compose.yml', 'name: shallow
+services:
+    app:
+        image: alpine
+');
+    File::ensureDirectoryExists($directory.'/html/src');
+    File::put($directory.'/html/src/Deep.php', "<?php
+
+namespace Mounted\Site;
+
+class Deep extends \Mozex\Compose\Stack {}
+");
+    config()->set('compose.discover', [$directory]);
+
+    $registry = app(StackRegistry::class);
+
+    expect($registry->all()['shallow'])->toBeInstanceOf(DiscoveredStack::class)
+        ->and($registry->unloadableClasses())->toBe([]);
+});
+
 it('refuses a directory holding more than one stack class', function (): void {
     config()->set('compose.discover', [fixturesPath('Broken/Twin')]);
 

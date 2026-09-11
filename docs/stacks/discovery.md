@@ -25,7 +25,7 @@ Modules/Search/Docker/docker-compose.yml      modular app: the Docker directory 
 
 A module with several stacks can add `base_path('Modules/*/Docker/*')` to the list.
 
-When a `Stack` subclass is declared by a PHP file in the stack directory, that class defines the stack. The lookup reads the PHP files to find the class name, then loads it through Composer, so the namespace has to match a PSR-4 mapping in `composer.json`. A class that can't be loaded (a namespace typo, a stale authoritative classmap) makes the directory count as class-less; `compose:doctor` warns about it by name. Two `Stack` classes in one directory is an error.
+When a `Stack` subclass is declared by a PHP file directly in the stack directory, that class defines the stack. The lookup reads those files to find the class name (subdirectories are left alone, so a bind-mounted PHP tree is never scanned), then loads it through Composer, so the namespace has to match a PSR-4 mapping in `composer.json`. A class that can't be loaded (a namespace typo, a stale authoritative classmap) makes the directory count as class-less; `compose:doctor` warns about it by name. Two `Stack` classes in one directory is an error.
 
 ## Class-less stacks
 

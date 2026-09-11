@@ -10,6 +10,7 @@ use Illuminate\Contracts\Container\Container;
 use Mozex\Compose\Exceptions\ComposeException;
 use Mozex\Compose\Support\ComposeFile;
 use ReflectionClass;
+use SplFileInfo;
 
 /**
  * Every stack the app owns: the classes listed in config, the ones registered
@@ -250,15 +251,19 @@ class StackRegistry
     }
 
     /**
-     * Concrete Stack subclasses declared by PHP files in the directory.
+     * Concrete Stack subclasses declared by the PHP files directly in the
+     * directory. Subdirectories are not scanned: a stack can bind-mount a
+     * whole PHP tree, and nothing in there is a Stack class beside the
+     * compose file.
      *
      * @return list<class-string<Stack>>
      */
     protected function stackClassesIn(string $directory): array
     {
         $classes = [];
+        $files = array_map(fn (string $path): SplFileInfo => new SplFileInfo($path), glob(rtrim($directory, '/\\').'/*.php') ?: []);
 
-        foreach (array_keys(ClassMapGenerator::createMap($directory)) as $class) {
+        foreach (array_keys(ClassMapGenerator::createMap($files)) as $class) {
             if (! class_exists($class)) {
                 $this->unloadable[$this->comparable($directory)][] = $class;
 
