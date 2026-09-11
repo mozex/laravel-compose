@@ -1,0 +1,105 @@
+<?php
+
+declare(strict_types=1);
+
+use Illuminate\Filesystem\Filesystem;
+use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Process;
+use Mozex\Compose\Exceptions\ComposeException;
+use Mozex\Compose\Support\EnvFile;
+
+enum FixtureLevel: string
+{
+    case Error = 'error';
+}
+
+it('renders plain values raw and one trailing newline', function (): void {
+    expect(EnvFile::render([
+        'PORT' => 7700,
+        'KEY' => 'abc-DEF_123.:/@+=,~%',
+        'EMPTY' => '',
+        'NOTHING' => null,
+        'ON' => true,
+        'OFF' => false,
+        'RATIO' => 1.5,
+        'LEVEL' => FixtureLevel::Error,
+        'STRINGABLE' => str('hello'),
+    ]))->toBe("PORT=7700\nKEY=abc-DEF_123.:/@+=,~%\nEMPTY=\nNOTHING=\nON=true\nOFF=false\nRATIO=1.5\nLEVEL=error\nSTRINGABLE=hello\n")
+        ->and(EnvFile::render([]))->toBe('');
+});
+
+it('quotes values compose would otherwise truncate or misread', function (): void {
+    expect(EnvFile::quote('hello world'))->toBe("'hello world'")
+        ->and(EnvFile::quote('secret #not-a-comment'))->toBe("'secret #not-a-comment'")
+        ->and(EnvFile::quote('say "hi"'))->toBe("'say \"hi\"'")
+        ->and(EnvFile::quote('$literal'))->toBe("'\$literal'")
+        ->and(EnvFile::quote("it's"))->toBe('"it\'s"')
+        ->and(EnvFile::quote("it's \"quoted\" \\ \$5"))->toBe('"it\'s \\"quoted\\" \\\\ $$5"');
+});
+
+it('refuses keys, line breaks, and values it cannot represent', function (): void {
+    expect(fn () => EnvFile::render(['not valid' => 'x'], 'meili'))
+        ->toThrow(ComposeException::class, '[not valid] on stack [meili]')
+        ->and(fn () => EnvFile::render(['1STARTS_WITH_DIGIT' => 'x']))
+        ->toThrow(ComposeException::class, 'not a valid variable name')
+        ->and(fn () => EnvFile::render(['BAD' => "a\nb"], 'meili'))
+        ->toThrow(ComposeException::class, '[BAD] on stack [meili] contains a line break')
+        ->and(fn () => EnvFile::render(['BAD' => "a\rb"]))
+        ->toThrow(ComposeException::class, 'line break')
+        ->and(fn () => EnvFile::render(['BAD' => ['nested']]))
+        ->toThrow(ComposeException::class, 'is a array');
+});
+
+it('writes the file with owner-only permissions', function (): void {
+    $directory = temporaryDirectory();
+    $path = $directory.'/nested/.env';
+
+    app(EnvFile::class)->write($path, ['TOKEN' => 'top secret'], 'fake');
+
+    expect(File::get($path))->toBe("TOKEN='top secret'\n");
+
+    if (PHP_OS_FAMILY !== 'Windows') {
+        expect(fileperms($path) & 0777)->toBe(0600);
+    }
+});
+
+it('round-trips every quoting shape through docker compose itself', function (): void {
+    if (! dockerComposeAvailable()) {
+        $this->markTestSkipped('docker compose is not available on this machine.');
+    }
+
+    $directory = temporaryDirectory();
+    $values = [
+        'PLAIN' => 'abc-123',
+        'SPACED' => 'hello world # not a comment',
+        'HASHED' => 'value#with#hashes',
+        'DOUBLE' => 'say "hi" $HOME',
+        'MIXED' => "it's \"quoted\" \\ back \$5 and \${SPACED}",
+        'BLANK' => '',
+    ];
+
+    File::put($directory.'/compose.yaml', implode("\n", [
+        'services:',
+        '    probe:',
+        '        image: alpine:3',
+        '        environment:',
+        ...array_map(fn (string $key): string => "            {$key}: \${{$key}}", array_keys($values)),
+        '',
+    ]));
+
+    (new EnvFile(new Filesystem))->write($directory.'/.env', $values, 'probe');
+
+    $result = Process::path($directory)->timeout(60)->run(['docker', 'compose', '--project-name', 'laravel-compose-probe', 'config', '--format', 'json']);
+
+    expect($result->successful())->toBeTrue($result->errorOutput());
+
+    $config = json_decode($result->output(), true);
+
+    // `compose config` escapes every dollar as `$$` in its rendered output so
+    // the result can be fed back to compose; undo that to compare raw values.
+    $rendered = array_map(fn (string $value): string => str_replace('$$', '$', $value), $config['services']['probe']['environment']);
+    ksort($rendered);
+    ksort($values);
+
+    expect($rendered)->toBe($values);
+});
