@@ -207,6 +207,20 @@ it('warns when the link directory cannot be written by this user', function (): 
     }
 });
 
+it('warns when a directory with content sits where the operator link should go', function (): void {
+    $directory = temporaryDirectory();
+    File::ensureDirectoryExists($directory.'/occupied');
+    File::put($directory.'/occupied/keep.txt', 'mine');
+    config()->set('compose.link_directory', $directory);
+    Compose::register(fakeStack(['name' => 'occupied']))->register(fakeStack(['name' => 'free']));
+
+    $report = app(Validator::class)->run(withDaemon: false);
+
+    expect($report->warnings())->toHaveCount(1)
+        ->and($report->warnings()[0]->stack)->toBe('occupied')
+        ->and($report->warnings()[0]->message)->toContain('is a directory with content, not a link');
+});
+
 it('warns when git would not ignore the env file, and stays quiet outside a repository', function (): void {
     Process::fake(['*git*check-ignore*' => Process::result(exitCode: 1)]);
     $tracked = fakeStack(['name' => 'tracked']);

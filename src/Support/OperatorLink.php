@@ -72,11 +72,10 @@ class OperatorLink
 
         // Remove what holds the path without ever following it: rmdir and
         // unlink take a link, a junction, or an empty directory on both
-        // platforms. Only a non-empty real directory needs the recursive delete.
+        // platforms. A directory with content is never deleted; it is refused
+        // below so an operator decides what happens to it.
         if (file_exists($linkPath) || is_link($linkPath)) {
-            if (! @rmdir($linkPath) && ! @unlink($linkPath) && $this->files->exists($linkPath)) {
-                $this->files->deleteDirectory($linkPath);
-            }
+            @rmdir($linkPath) || @unlink($linkPath);
         }
 
         clearstatcache(true, $linkPath);

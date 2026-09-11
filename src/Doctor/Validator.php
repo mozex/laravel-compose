@@ -242,6 +242,16 @@ class Validator
         $parent = dirname($path);
 
         if (file_exists($path) || is_link($path)) {
+            if (@readlink($path) === false && is_dir($path) && count((array) scandir($path)) > 2) {
+                $problems[] = Problem::warning(
+                    "The operator link path [{$path}] is a directory with content, not a link. The redeploy leaves it alone and "
+                    .'skips the link; move the content away so the link can take its place.',
+                    $stack->name(),
+                );
+
+                return;
+            }
+
             if (! is_writable($parent)) {
                 $problems[] = Problem::warning(
                     "The operator link [{$path}] exists but [{$parent}] is not writable by this user, so it cannot be refreshed. "

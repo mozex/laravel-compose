@@ -86,7 +86,8 @@ class ComposeException extends RuntimeException
     {
         return new self(
             "Cannot refresh the operator link for stack [{$stack}]: whatever sits at [{$path}] resisted removal. "
-            .'Remove it by hand or make it writable by the deploy user.',
+            .'An old link or an empty directory is replaced; a directory with content is left alone. '
+            .'Move it away, or make the path writable by the deploy user.',
         );
     }
 
