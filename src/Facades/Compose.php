@@ -25,11 +25,15 @@ class Compose extends Facade
     /**
      * Swap in a fake that records redeploys instead of running docker. The
      * Process facade is faked too, so a stack's status, logs, and exec calls
-     * never reach a daemon either.
+     * never reach a daemon either. A Process fake that is already in place
+     * is kept, so call Process::fake([...]) first when specific results are
+     * needed: a bare fake installed here would shadow patterns added later.
      */
     public static function fake(): ComposeFake
     {
-        Process::fake();
+        if (! Process::isRecording()) {
+            Process::fake();
+        }
 
         $fake = static::$app->make(ComposeFake::class);
 

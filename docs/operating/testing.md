@@ -5,7 +5,7 @@ weight: 4
 
 ## Faking the manager
 
-`Compose::fake()` swaps the manager for one that records redeploys instead of running them. An enabled stack records `Redeployed`, a disabled one `Skipped`, and no env file is written and no docker command runs. It also calls `Process::fake()`, so a stack's `status()`, `logs()`, or `exec()` never reach a daemon either.
+`Compose::fake()` swaps the manager for one that records redeploys instead of running them. An enabled stack records `Redeployed`, a disabled one `Skipped`, and no env file is written and no docker command runs. It also calls `Process::fake()`, so a stack's `status()`, `logs()`, or `exec()` never reach a daemon either. When a test needs specific process results as well, call `Process::fake([...])` before `Compose::fake()`: an existing fake is kept, but a bare one installed first would shadow patterns you add afterwards.
 
 ```php
 use Mozex\Compose\Facades\Compose;

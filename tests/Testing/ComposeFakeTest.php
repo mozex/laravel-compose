@@ -57,6 +57,14 @@ it('can force a failure and respects the master switch', function (): void {
     expect(Compose::redeploy('fine'))->toBe(['fine' => RedeployResult::Skipped]);
 });
 
+it('keeps a process fake that was installed first', function (): void {
+    Process::fake(['*ps*' => Process::result('{"Name":"quiet-app","Service":"app","State":"running","Health":"","Status":"Up","ExitCode":0,"Publishers":[]}')]);
+    Compose::fake();
+    Compose::register(fakeStack(['name' => 'quiet']));
+
+    expect(Compose::stack('quiet')->isRunning())->toBeTrue();
+});
+
 it('keeps stack helpers away from a real daemon', function (): void {
     Compose::fake();
     $stack = fakeStack(['name' => 'quiet']);
