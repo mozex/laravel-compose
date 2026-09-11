@@ -15,4 +15,11 @@ class ComposeServiceProvider extends PackageServiceProvider
             ->name('laravel-compose')
             ->hasConfigFile();
     }
+
+    public function packageRegistered(): void
+    {
+        $this->app->singleton(StackRegistry::class);
+        $this->app->singleton(Docker::class);
+        $this->app->singleton(Compose::class);
+    }
 }
