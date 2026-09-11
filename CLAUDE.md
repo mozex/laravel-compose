@@ -17,7 +17,8 @@ src/
   Compose.php               Manager behind the facade: stacks(), stack(), register(), redeploy(), validate(), docker().
   Doctor/                   Validator + Report/Problem/Severity behind compose:doctor and Compose::validate().
   Support/ComposeFile.php   Symfony YAML parse: name, container names, required ${VAR}s, profiles, bind mounts, public publishes, interpolation.
-  Support/EnvFile.php       Compose-compatible quoting, 0600 perms, refuses newlines.
+  Support/EnvFile.php       Env path from config, hand-written file detection, key parsing, Compose-compatible quoting,
+                            0600 perms, refuses newlines.
   Support/OperatorLink.php  Symlink/junction refresh at {link_directory}/{name}; never fatal to a rollout.
   Support/StackStatus.php   Parses `compose ps --format json` (NDJSON and array forms).
   Support/NamespaceResolver Directory -> namespace via Composer's PSR-4 map (used by compose:make).
@@ -35,7 +36,7 @@ Dependency flow: Commands -> Compose/Docker/Validator -> Stack/Registry -> Suppo
 - **The redeploy order is not negotiable.** Env before `up` (compose reads it then), `pull` before the `rm -f` sweep (old container serves during the download, registry outage still redeploys), sweep before `up` (a fixed `container_name` created under another project context wedges `up` with a name conflict). Pull and rm results are ignored on purpose.
 - **Everything runs through the `Process` facade** so `Process::fake()` and `Compose::fake()` see all of it. Never reach for Symfony Process directly. `Docker::run()` turns a `ProcessTimedOutException` into a failed result, so a stalled step never escapes as an exception.
 - **Names are global on a host.** The scaffolder prefixes the project and container names with the app slug (`{app}-{stack}`) so two apps on one server can't sweep each other's containers. Hand-written compose files are the user's call; the docs explain the trade-off.
-- **An empty `environment()` never overwrites an existing env file.** Class-less stacks are fed by hand-written files, so `RedeployStack::writeEnvironment()` leaves a non-empty file alone when there is nothing to write.
+- **An empty `environment()` never overwrites an existing env file.** Class-less stacks are fed by hand-written files, so `RedeployStack::writeEnvironment()` leaves a non-empty file alone when there is nothing to write (`EnvFile::isHandWritten()`). The doctor mirrors that: it counts the file's keys as provided and lets `compose config` read the file itself instead of a rendered temp file.
 - **Unloadable Stack classes are tracked, not swallowed.** `StackRegistry::unloadableClasses()` records classes the class-map scan found but PHP couldn't autoload; the doctor warns per stack.
 - **Compose project name and directory are always explicit** (`--project-name`, `--project-directory`, `--file`) so two stacks in directories both called `Docker` cannot collide.
 - **Defaults come from the compose file**, not from duplicated PHP: `name:` and `container_name:` are parsed, and the doctor checks every non-defaulted `${VAR}` against `environment()`. That replaces a hand-written parity test.

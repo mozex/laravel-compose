@@ -26,6 +26,7 @@ class Validator
         protected Docker $docker,
         protected StackRegistry $registry,
         protected OperatorLink $link,
+        protected EnvFile $envFile,
         protected Repository $config,
     ) {}
 
@@ -131,11 +132,22 @@ class Validator
             return;
         }
 
-        $missing = array_values(array_diff($compose->requiredVariables(), array_map('strval', array_keys($environment))));
+        // A stack with nothing to write is fed by a file written by hand, the
+        // one a redeploy leaves alone; its keys count as provided.
+        $handWritten = $this->envFile->isHandWritten($stack);
+        $envPath = $this->envFile->pathFor($stack);
+        $provided = array_map('strval', array_keys($environment));
+
+        if ($handWritten) {
+            $provided = [...$provided, ...EnvFile::keys((string) file_get_contents($envPath))];
+        }
+
+        $missing = array_values(array_diff($compose->requiredVariables(), $provided));
 
         if ($missing !== []) {
             $problems[] = Problem::error(
-                'The compose file consumes '.implode(', ', $missing).' without a default, but environment() does not provide '
+                'The compose file consumes '.implode(', ', $missing).' without a default, but '
+                .($handWritten ? "neither environment() nor [{$envPath}] provides " : 'environment() does not provide ')
                 .(count($missing) === 1 ? 'it' : 'them').'.',
                 $name,
             );
@@ -183,7 +195,7 @@ class Validator
         $this->checkEnvFileIgnored($stack, $problems);
 
         if ($withDaemon && $missing === []) {
-            $this->checkComposeConfig($stack, $rendered, $problems);
+            $this->checkComposeConfig($stack, $handWritten ? null : $rendered, $problems);
         }
     }
 
@@ -203,8 +215,7 @@ class Validator
             return;
         }
 
-        $file = $this->config->get('compose.env_file', '.env');
-        $envPath = $directory.DIRECTORY_SEPARATOR.(is_string($file) && $file !== '' ? $file : '.env');
+        $envPath = $this->envFile->pathFor($stack);
         $result = Process::path($directory)->timeout(10)->run(['git', 'check-ignore', '--quiet', $envPath]);
 
         // Exit 1 means "not ignored"; anything else (git missing, not a repo)
@@ -299,28 +310,34 @@ class Validator
 
     /**
      * Let compose itself validate the file with the environment the stack
-     * would write, without touching the stack directory.
+     * would write, without touching the stack directory. With nothing
+     * rendered, compose reads the env file already in the directory.
      *
      * @param  list<Problem>  $problems
      */
-    protected function checkComposeConfig(Stack $stack, string $rendered, array &$problems): void
+    protected function checkComposeConfig(Stack $stack, ?string $rendered, array &$problems): void
     {
-        $envFile = tempnam(sys_get_temp_dir(), 'laravel-compose-');
+        $envFile = $rendered === null ? null : tempnam(sys_get_temp_dir(), 'laravel-compose-');
 
         if ($envFile === false) {
             return;
         }
 
-        file_put_contents($envFile, $rendered);
+        if ($envFile !== null) {
+            file_put_contents($envFile, $rendered);
+        }
 
         try {
-            $result = $this->docker->compose($stack, ['--env-file', $envFile, 'config', '--quiet'], 30);
+            $arguments = $envFile === null ? [] : ['--env-file', $envFile];
+            $result = $this->docker->compose($stack, [...$arguments, 'config', '--quiet'], 30);
 
             if ($result->failed()) {
                 $problems[] = Problem::error('`docker compose config` rejected the stack: '.$this->trim($result->errorOutput().$result->output()), $stack->name());
             }
         } finally {
-            @unlink($envFile);
+            if ($envFile !== null) {
+                @unlink($envFile);
+            }
         }
     }
 

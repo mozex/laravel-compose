@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace Mozex\Compose\Support;
 
 use BackedEnum;
+use Illuminate\Contracts\Config\Repository;
 use Illuminate\Filesystem\Filesystem;
 use Mozex\Compose\Exceptions\ComposeException;
+use Mozex\Compose\Stack;
 use Stringable;
 
 /**
@@ -16,7 +18,55 @@ use Stringable;
  */
 class EnvFile
 {
-    public function __construct(protected Filesystem $files) {}
+    public function __construct(
+        protected Filesystem $files,
+        protected Repository $config,
+    ) {}
+
+    /**
+     * The env file inside the stack directory, named by the `env_file` config.
+     */
+    public function pathFor(Stack $stack): string
+    {
+        $file = $this->config->get('compose.env_file', '.env');
+
+        return $stack->directory().DIRECTORY_SEPARATOR.(is_string($file) && $file !== '' ? $file : '.env');
+    }
+
+    /**
+     * Whether the stack's env file was written by hand: nothing to write from
+     * environment(), and a non-empty file already in place. A redeploy leaves
+     * such a file alone, and the doctor reads it instead.
+     */
+    public function isHandWritten(Stack $stack): bool
+    {
+        if ($stack->environment() !== []) {
+            return false;
+        }
+
+        $path = $this->pathFor($stack);
+
+        return is_file($path) && filesize($path) > 0;
+    }
+
+    /**
+     * The variable names an env file defines, in file order. Comments, blank
+     * lines, and an `export` prefix are skipped; values are not parsed.
+     *
+     * @return list<string>
+     */
+    public static function keys(string $contents): array
+    {
+        $keys = [];
+
+        foreach (preg_split('/\r?\n/', $contents) ?: [] as $line) {
+            if (preg_match('/^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=/', $line, $match) === 1) {
+                $keys[] = $match[1];
+            }
+        }
+
+        return array_values(array_unique($keys));
+    }
 
     /**
      * @param  array<string, mixed>  $environment

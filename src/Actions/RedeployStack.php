@@ -121,9 +121,7 @@ class RedeployStack
 
     public function envPath(Stack $stack): string
     {
-        $file = $this->config->get('compose.env_file', '.env');
-
-        return $stack->directory().DIRECTORY_SEPARATOR.(is_string($file) && $file !== '' ? $file : '.env');
+        return $this->envFile->pathFor($stack);
     }
 
     /**
@@ -133,14 +131,11 @@ class RedeployStack
      */
     protected function writeEnvironment(Stack $stack): void
     {
-        $path = $this->envPath($stack);
-        $environment = $stack->environment();
-
-        if ($environment === [] && is_file($path) && filesize($path) > 0) {
+        if ($this->envFile->isHandWritten($stack)) {
             return;
         }
 
-        $this->envFile->write($path, $environment, $stack->name());
+        $this->envFile->write($this->envPath($stack), $stack->environment(), $stack->name());
     }
 
     protected function upTimeout(Stack $stack): int

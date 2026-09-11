@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-use Illuminate\Filesystem\Filesystem;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Process;
 use Mozex\Compose\Exceptions\ComposeException;
@@ -50,6 +49,30 @@ it('refuses keys, line breaks, and values it cannot represent', function (): voi
         ->toThrow(ComposeException::class, 'is a array');
 });
 
+it('lists the keys a hand-written file defines', function (): void {
+    expect(EnvFile::keys("# comment\nSECRET=abc\n\nexport PORT = 7700\n  SPACED='a b'\nSECRET=again\nnot a key\n1BAD=x\n"))
+        ->toBe(['SECRET', 'PORT', 'SPACED'])
+        ->and(EnvFile::keys(''))->toBe([]);
+});
+
+it('resolves the env path from config and knows a hand-written file', function (): void {
+    $envFile = app(EnvFile::class);
+    $stack = fakeStack(['environment' => []]);
+
+    expect($envFile->pathFor($stack))->toBe($stack->directory().DIRECTORY_SEPARATOR.'.env')
+        ->and($envFile->isHandWritten($stack))->toBeFalse();
+
+    File::put($stack->directory().'/.env', "HAND=written\n");
+
+    expect($envFile->isHandWritten($stack))->toBeTrue()
+        ->and($envFile->isHandWritten(fakeStack(['environment' => ['KEY' => 'v'], 'directory' => $stack->directory()])))->toBeFalse();
+
+    config()->set('compose.env_file', '.env.stack');
+
+    expect($envFile->pathFor($stack))->toBe($stack->directory().DIRECTORY_SEPARATOR.'.env.stack')
+        ->and($envFile->isHandWritten($stack))->toBeFalse();
+});
+
 it('writes the file with owner-only permissions', function (): void {
     $directory = temporaryDirectory();
     $path = $directory.'/nested/.env';
@@ -87,7 +110,7 @@ it('round-trips every quoting shape through docker compose itself', function ():
         '',
     ]));
 
-    (new EnvFile(new Filesystem))->write($directory.'/.env', $values, 'probe');
+    app(EnvFile::class)->write($directory.'/.env', $values, 'probe');
 
     $result = Process::path($directory)->timeout(60)->run(['docker', 'compose', '--project-name', 'laravel-compose-probe', 'config', '--format', 'json']);
 

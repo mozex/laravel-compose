@@ -102,6 +102,33 @@ it('reports a variable the compose file needs and the stack does not write', fun
         ->and($report->errors()[0]->message)->toBe('The compose file consumes SECRET without a default, but environment() does not provide it.');
 });
 
+it('reads a hand-written env file for a stack with nothing to write', function (): void {
+    Process::fake(['*' => Process::result('ok')]);
+    $compose = "name: quiet\nservices:\n    app:\n        image: alpine\n        environment:\n            SECRET: \${SECRET}\n";
+    $stack = fakeStack(['name' => 'quiet', 'compose' => $compose, 'environment' => []]);
+    Compose::register($stack);
+
+    $report = app(Validator::class)->run();
+
+    expect($report->errors())->toHaveCount(1)
+        ->and($report->errors()[0]->message)->toBe('The compose file consumes SECRET without a default, but environment() does not provide it.');
+
+    File::put($stack->directory().'/.env', "# written by hand\nSECRET=shh\n");
+
+    $report = app(Validator::class)->run();
+
+    expect($report->errors())->toBe([]);
+
+    // Compose reads the file in the directory: no temporary env file is passed.
+    Process::assertRan(fn (PendingProcess $process): bool => array_slice($process->command, -2) === ['config', '--quiet']
+        && ! in_array('--env-file', $process->command, true));
+
+    File::put($stack->directory().'/.env', "OTHER=x\n");
+
+    expect(app(Validator::class)->run(withDaemon: false)->errors()[0]->message)
+        ->toBe('The compose file consumes SECRET without a default, but neither environment() nor ['.$stack->directory().DIRECTORY_SEPARATOR.'.env] provides it.');
+});
+
 it('warns about publishes on every interface, resolving the address through the environment', function (): void {
     Compose::register(fakeStack([
         'name' => 'open',

@@ -62,7 +62,7 @@ class MeilisearchStack extends Stack
 
 Rules that matter:
 
-- Every `${VAR}` the compose file consumes without a default must be a key of `environment()`. `${VAR:-x}` is fine without one. `compose:doctor` enforces it.
+- Every `${VAR}` the compose file consumes without a default must be a key of `environment()`. `${VAR:-x}` is fine without one. `compose:doctor` enforces it; for a class-less stack it reads the hand-written env file in the directory instead.
 - Derive a port from the URL the app already dials rather than adding a second config key; the two can then never disagree.
 - Never edit the generated `.env` on a server. The next redeploy overwrites it.
 - Values may be scalars, null, backed enums, or `Stringable`; no arrays, no line breaks. Quoting is handled.
