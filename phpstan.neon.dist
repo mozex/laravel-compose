@@ -4,3 +4,10 @@ parameters:
         - src
         - config
     reportUnmatchedIgnoredErrors: true
+    type_coverage:
+        # Typed class constants need PHP 8.3; the package supports 8.2.
+        constant: 0
+    ignoreErrors:
+        -
+            identifier: larastan.noEnvCallsOutsideOfConfig
+            path: config/compose.php
