@@ -201,7 +201,7 @@ it('warns when the link directory cannot be written by this user', function (): 
 
         expect($report->warnings())->toHaveCount(1)
             ->and($report->warnings()[0]->message)->toContain("[{$locked}] is not writable by this user")
-            ->and($report->warnings()[0]->message)->toContain('sudo chown -R');
+            ->and($report->warnings()[0]->message)->toContain("sudo mkdir -p {$locked}/containers && sudo chown");
     } finally {
         chmod($locked, 0700);
     }

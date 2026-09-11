@@ -25,9 +25,9 @@ COMPOSE_LINK_DIRECTORY=/home/ploi/containers
 
 Two things to know about that directory:
 
-- The panel creates it as root the first time you open the containers screen. The deploy user then can't write the link. Run `sudo chown -R ploi:ploi /home/ploi/containers` once (with your user in place of `ploi`); `compose:doctor` prints that exact command when it applies. Until it's done, the link is skipped with a line in the deploy log and the container still comes up.
+- The panel creates it as root the first time you open the containers screen. The deploy user then can't write the link. Run `sudo chown ploi:ploi /home/ploi/containers` once (with your user in place of `ploi`); `compose:doctor` prints that exact command when it applies. Until it's done, the link is skipped with a line in the deploy log and the container still comes up.
 - An empty directory the panel created for a stack gives way to the link. A directory that already has files in it doesn't: the package never deletes content, so move the files away first, or the link stays skipped.
-- Ploi stores its own copy of the compose YAML in its database and would write it into the linked directory, which is your release tree, if you deployed the container from the panel. Use the panel for logs and status. Deploy from the app.
+- Ploi stores its own copy of the compose YAML in its database, and a container deploy started from the panel is likely to write that copy into the linked directory, which is your release tree. Use the panel for logs and status. Deploy from the app.
 
 ## Laravel Forge
 

@@ -261,9 +261,10 @@ class Validator
             }
 
             if (! is_writable($parent)) {
+                $user = $this->user();
                 $problems[] = Problem::warning(
                     "The operator link [{$path}] exists but [{$parent}] is not writable by this user, so it cannot be refreshed. "
-                    ."Run: sudo chown -R {$this->user()} {$parent}",
+                    ."Run: sudo chown {$user}:{$user} {$parent}",
                     $stack->name(),
                 );
             }
@@ -284,9 +285,10 @@ class Validator
         }
 
         if (! is_writable($ancestor)) {
+            $user = $this->user();
             $problems[] = Problem::warning(
                 "The operator link [{$path}] cannot be created: [{$ancestor}] is not writable by this user. "
-                ."Hosting panels often create this directory as root. Run: sudo chown -R {$this->user()} {$ancestor}",
+                ."Hosting panels often create the containers directory as root. Run: sudo mkdir -p {$parent} && sudo chown {$user}:{$user} {$parent}",
                 $stack->name(),
             );
         }
