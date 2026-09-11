@@ -1,0 +1,8 @@
+{
+    "$schema": "https://context7.com/schema/context7.json",
+    "url": "https://context7.com/mozex/laravel-compose",
+    "public_key": "pk_2dXAZIEpHP6qQeGGTuyQt",
+    "projectTitle": "Laravel Compose",
+    "description": "Run and redeploy Docker Compose stacks owned by your Laravel app",
+    "folders": []
+}
