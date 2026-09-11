@@ -11,8 +11,8 @@ src/
                             name(), directory(), containerNames() default from the compose file and class location.
   DiscoveredStack.php       A compose directory with no Stack class beside it (empty environment).
   StackRegistry.php         config('compose.stacks') + runtime register() + directory discovery (globs, class-map scan).
-  Docker.php                The only place the docker binary runs. Process facade, explicit --project-name/--project-directory/--file,
-                            DOCKER_HOST / --context support, timeouts from config.
+  Docker.php                The only place the docker binary runs. Process facade, explicit --project-name/--project-directory/--file
+                            (+ --env-file when env_file is not .env), DOCKER_HOST / --context resolution, timeouts from config.
   Actions/RedeployStack.php The recipe (env write, link, build?, pull, rm -f sweep, up). Order is load-bearing, see the docblock.
   Compose.php               Manager behind the facade: stacks(), stack(), register(), redeploy(), validate(), docker().
   Doctor/                   Validator + Report/Problem/Severity behind compose:doctor and Compose::validate().
@@ -37,13 +37,15 @@ Dependency flow: Commands -> Compose/Docker/Validator -> Stack/Registry -> Suppo
 - **Everything runs through the `Process` facade** so `Process::fake()` and `Compose::fake()` see all of it. Never reach for Symfony Process directly. `Docker::run()` turns a `ProcessTimedOutException` into a failed result, so a stalled step never escapes as an exception.
 - **Names are global on a host.** The scaffolder prefixes the project and container names with the app slug (`{app}-{stack}`) so two apps on one server can't sweep each other's containers. Hand-written compose files are the user's call; the docs explain the trade-off.
 - **An empty `environment()` never overwrites an existing env file.** Class-less stacks are fed by hand-written files, so `RedeployStack::writeEnvironment()` leaves a non-empty file alone when there is nothing to write (`EnvFile::isHandWritten()`). The doctor mirrors that: it parses the file for the variable and publish checks and lets `compose config` read the file itself instead of a rendered temp file.
-- **A bad env value fails one stack, not the run.** `RedeployStack::execute()` catches what `writeEnvironment()` throws, fires `StackRedeployFailedEvent` with step `env` and the exception, and returns `Failed`, so the loop in `Compose::redeploy()` reaches every stack.
+- **A bad compose file or env value fails one stack, not the run.** `Stack::name()` falls back to the directory name when the compose file can't be parsed, so the registry still holds the stack; `RedeployStack::execute()` reads the compose file and writes the env file inside try/catch, fires `StackRedeployFailedEvent` with step `compose` or `env` and the exception, and returns `Failed`, so the loop in `Compose::redeploy()` reaches every stack.
+- **Docker target precedence lives in `Docker::target()`.** A stack's `host()`/`context()` replaces both global values; a context beside a host drops the host (Docker ignores `DOCKER_HOST` under `--context`); `default` means no context.
 - **Unloadable Stack classes are tracked, not swallowed.** `StackRegistry::unloadableClasses()` records classes the class-map scan found but PHP couldn't autoload; the doctor warns per stack.
 - **Compose project name and directory are always explicit** (`--project-name`, `--project-directory`, `--file`) so two stacks in directories both called `Docker` cannot collide.
 - **Defaults come from the compose file**, not from duplicated PHP: `name:` and `container_name:` are parsed, and the doctor checks every non-defaulted `${VAR}` against `environment()`. That replaces a hand-written parity test.
 - **Class-less stacks are valid.** A directory with a compose file and no class is a `DiscoveredStack`; compose-side `${VAR:-default}` carries the knobs.
 - **The operator link is convenience.** Its failure is reported and printed but never fails the deploy. It is skipped for remote daemons. The link directory is a full path; the package never assumes a username. An old link or an empty directory at the path is replaced; a directory with content is refused, never deleted (the doctor warns about it).
 - **Remote daemons** are `DOCKER_HOST` (env) or `--context` (flag), per stack or global. Bind mounts of stack-local files do not exist there; the doctor warns.
+- **The doctor requires Compose 2.19** (`Validator::MINIMUM_COMPOSE_VERSION`) for `pull --ignore-buildable` and `up --wait-timeout`, and warns rather than errors for a `${VAR}` that only the shell provides.
 - **PHP 8.2 floor.** No typed class constants, no `new X()->method()` without parentheses. PHPStan `type_coverage.constant` is 0 for that reason.
 - **Fake patterns in tests use `*` between tokens** (`'*info*--format*'`). Symfony quotes every argument on Linux, so `'*info --format*'` matches on Windows only.
 
@@ -61,7 +63,8 @@ composer test            # lint + phpstan + type coverage + pest
 composer test:unit       # pest only
 ```
 
-- Tests live beside what they cover (`tests/Support`, `tests/Commands`, `tests/Doctor`, ...). `tests/Pest.php` provides `fakeStack()` (anonymous Stack in a temp dir with overrides), `temporaryDirectory()`, `fixturesPath()`, and `dockerComposeAvailable()`.
+- Tests live beside what they cover (`tests/Support`, `tests/Commands`, `tests/Doctor`, ...). `tests/Pest.php` provides `fakeStack()` (anonymous Stack in a temp dir with overrides), `temporaryDirectory()` (removed after each test by a global `afterEach` on the `uses()` chain, links unlinked rather than followed), `fixturesPath()`, and `dockerComposeAvailable()`.
+- `Process::fake()` string patterns match the whole command line, temp paths included: match on `$process->command` in a closure instead of `'*ps*'`.
 - `tests/Fixtures/` holds stack layouts: `Plain/` (parent directory with a classed and a class-less stack), `Modules/*/Docker` (module style), `Broken/` (two classes, invalid YAML).
 - `tests/Integration/RealDockerTest.php` runs the real recipe against a real daemon with a throwaway alpine container, `--wait` included. It skips when docker compose or the daemon is missing. `tests/Support/EnvFileTest.php` also round-trips quoting through `docker compose config`.
 - `expectsOutputToContain` matches substrings against single write calls: keep every expected substring unique to one output line.

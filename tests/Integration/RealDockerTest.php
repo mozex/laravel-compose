@@ -57,10 +57,11 @@ beforeEach(function (): void {
 });
 
 afterEach(function (): void {
+    // The stack directory is already gone by now: temporary directories are
+    // removed by the global hook first. `down` finds the project by name.
     if (isset($this->name)) {
         Process::timeout(60)->run(['docker', 'rm', '-f', $this->name.'-app']);
-        Process::timeout(60)->path($this->stack->directory())->run(['docker', 'compose', '--project-name', $this->name, 'down', '--remove-orphans', '--volumes']);
-        File::deleteDirectory($this->stack->directory());
+        Process::timeout(60)->run(['docker', 'compose', '--project-name', $this->name, 'down', '--remove-orphans', '--volumes']);
     }
 });
 
