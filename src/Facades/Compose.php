@@ -15,6 +15,7 @@ use Mozex\Compose\Testing\ComposeFake;
  * @method static \Mozex\Compose\Compose register(\Mozex\Compose\Stack|string $stack)
  * @method static bool enabled()
  * @method static array<string, \Mozex\Compose\Enums\RedeployResult> redeploy(?string $only = null, ?\Closure $output = null)
+ * @method static \Mozex\Compose\Doctor\Report validate(bool $withDaemon = true)
  * @method static \Mozex\Compose\Docker docker()
  *
  * @see \Mozex\Compose\Compose

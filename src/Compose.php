@@ -8,6 +8,8 @@ use Closure;
 use Illuminate\Contracts\Config\Repository;
 use Illuminate\Contracts\Container\Container;
 use Mozex\Compose\Actions\RedeployStack;
+use Mozex\Compose\Doctor\Report;
+use Mozex\Compose\Doctor\Validator;
 use Mozex\Compose\Enums\RedeployResult;
 
 class Compose
@@ -71,6 +73,17 @@ class Compose
         }
 
         return $results;
+    }
+
+    /**
+     * Run the same checks as `compose:doctor` and get the report back, so a
+     * test suite can assert the stacks are consistent with their compose files.
+     *
+     * @param  bool  $withDaemon  Also run the checks that talk to the docker binary and daemon
+     */
+    public function validate(bool $withDaemon = true): Report
+    {
+        return $this->container->make(Validator::class)->run($withDaemon);
     }
 
     public function docker(): Docker
