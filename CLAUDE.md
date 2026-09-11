@@ -37,7 +37,7 @@ Dependency flow: Commands -> Compose/Docker/Validator -> Stack/Registry -> Suppo
 - **Compose project name and directory are always explicit** (`--project-name`, `--project-directory`, `--file`) so two stacks in directories both called `Docker` cannot collide.
 - **Defaults come from the compose file**, not from duplicated PHP: `name:` and `container_name:` are parsed, and the doctor checks every non-defaulted `${VAR}` against `environment()`. That replaces a hand-written parity test.
 - **Class-less stacks are valid.** A directory with a compose file and no class is a `DiscoveredStack`; compose-side `${VAR:-default}` carries the knobs.
-- **The operator link is convenience.** Its failure is reported and printed but never fails the deploy. It is skipped for remote daemons. The link directory is a full path; the package never assumes a username.
+- **The operator link is convenience.** Its failure is reported and printed but never fails the deploy. It is skipped for remote daemons. The link directory is a full path; the package never assumes a username. An old link or an empty directory at the path is replaced; a directory with content is refused, never deleted (the doctor warns about it).
 - **Remote daemons** are `DOCKER_HOST` (env) or `--context` (flag), per stack or global. Bind mounts of stack-local files do not exist there; the doctor warns.
 - **PHP 8.2 floor.** No typed class constants, no `new X()->method()` without parentheses. PHPStan `type_coverage.constant` is 0 for that reason.
 - **Fake patterns in tests use `*` between tokens** (`'*info*--format*'`). Symfony quotes every argument on Linux, so `'*info --format*'` matches on Windows only.

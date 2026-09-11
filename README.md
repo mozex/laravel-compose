@@ -6,7 +6,7 @@
 [![License](https://img.shields.io/github/license/mozex/laravel-compose.svg?style=flat-square)](https://packagist.org/packages/mozex/laravel-compose)
 [![Total Downloads](https://img.shields.io/packagist/dt/mozex/laravel-compose.svg?style=flat-square)](https://packagist.org/packages/mozex/laravel-compose)
 
-Some Laravel apps need a container or two next to them: a Meilisearch index, a Telegram Bot API server, a headless browser for page scans, an image toolchain. This package keeps each of those as a Docker Compose stack inside the app, writes its env file from your own config, and recreates the containers on every deploy with one Artisan command. Status, logs, teardown, and a preflight doctor come with it, so you don't need a hosting panel to run the stacks, and the panel keeps working if you have one.
+Some Laravel apps need a container or two next to them: a Meilisearch index, a Telegram Bot API server, a headless browser for page scans, an image toolchain. This package keeps each of those as a Docker Compose stack inside the app. The env file is written from your own config, and one Artisan command recreates the containers on every deploy. Status, logs, teardown, and a preflight doctor are included. You don't need a hosting panel to run the stacks, and the panel keeps working if you have one.
 
 > **[Read the full documentation at mozex.dev](https://mozex.dev/docs/laravel-compose/v1)**: searchable docs, version requirements, detailed changelog, and more.
 
