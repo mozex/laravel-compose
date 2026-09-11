@@ -12,13 +12,13 @@ class MeilisearchStack extends Stack
     public function environment(): array
     {
         return [
-            'MEILISEARCH_KEY' => Config::string('fixtures.meilisearch.key', 'fixture-master-key'),
+            'MEILISEARCH_KEY' => (string) Config::get('fixtures.meilisearch.key', 'fixture-master-key'),
             'MEILISEARCH_PORT' => 7700,
         ];
     }
 
     public function enabled(): bool
     {
-        return Config::boolean('fixtures.meilisearch.enabled', true);
+        return (bool) Config::get('fixtures.meilisearch.enabled', true);
     }
 }

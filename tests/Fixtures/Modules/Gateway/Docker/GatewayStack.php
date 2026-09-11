@@ -19,6 +19,6 @@ class GatewayStack extends Stack
 
     public function profiles(): array
     {
-        return Config::boolean('fixtures.gateway.tls', false) ? ['tls'] : [];
+        return Config::get('fixtures.gateway.tls', false) ? ['tls'] : [];
     }
 }

@@ -80,10 +80,11 @@ class Docker
 
     /**
      * @param  list<string>  $arguments
+     * @param  int  $timeout  Seconds, or 0 to let the process run until it exits
      */
     public function run(array $arguments, ?Stack $stack = null, ?string $path = null, int $timeout = 60, ?Closure $output = null): ProcessResult
     {
-        $process = Process::timeout($timeout)->env($this->environment($stack));
+        $process = ($timeout > 0 ? Process::timeout($timeout) : Process::forever())->env($this->environment($stack));
 
         if ($path !== null) {
             $process = $process->path($path);
