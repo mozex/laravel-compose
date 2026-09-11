@@ -45,7 +45,7 @@ Dependency flow: Commands -> Compose/Docker/Validator -> Stack/Registry -> Suppo
 - **Class-less stacks are valid.** A directory with a compose file and no class is a `DiscoveredStack`; compose-side `${VAR:-default}` carries the knobs.
 - **The operator link is convenience.** Its failure is reported and printed but never fails the deploy. It is skipped for remote daemons. The link directory is a full path; the package never assumes a username. An old link or an empty directory at the path is replaced; a directory with content is refused, never deleted (the doctor warns about it).
 - **Remote daemons** are `DOCKER_HOST` (env) or `--context` (flag), per stack or global. Bind mounts of stack-local files do not exist there; the doctor warns.
-- **The doctor requires Compose 2.19** (`Validator::MINIMUM_COMPOSE_VERSION`) for `pull --ignore-buildable` and `up --wait-timeout`, and warns rather than errors for a `${VAR}` that only the shell provides.
+- **The doctor requires Compose 2.17** (`Validator::MINIMUM_COMPOSE_VERSION`): `pull --ignore-buildable` arrived in 2.15 and `up --wait-timeout` in 2.17. It warns rather than errors for a `${VAR}` that only the shell provides.
 - **PHP 8.2 floor.** No typed class constants, no `new X()->method()` without parentheses. PHPStan `type_coverage.constant` is 0 for that reason.
 - **Fake patterns in tests use `*` between tokens** (`'*info*--format*'`). Symfony quotes every argument on Linux, so `'*info --format*'` matches on Windows only.
 

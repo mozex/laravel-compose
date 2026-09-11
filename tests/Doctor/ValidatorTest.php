@@ -82,15 +82,15 @@ it('flags a missing compose plugin and an unreachable daemon, with the docker-gr
 it('refuses a compose plugin older than the redeploy needs', function (): void {
     Process::fake([
         '*--version*' => Process::result('Docker version 29.0.1, build a7dcaa6'),
-        '*compose*version*' => Process::result('v2.17.3'),
+        '*compose*version*' => Process::result('v2.16.1'),
         '*info*--format*' => Process::result('29.0.1'),
     ]);
 
     $report = app(Validator::class)->run();
 
-    expect($report->notes()[1]->message)->toBe('Docker Compose 2.17.3.')
+    expect($report->notes()[1]->message)->toBe('Docker Compose 2.16.1.')
         ->and($report->errors())->toHaveCount(1)
-        ->and($report->errors()[0]->message)->toContain('Docker Compose 2.17.3 is older than 2.19.0');
+        ->and($report->errors()[0]->message)->toContain('Docker Compose 2.16.1 is older than 2.17.0');
 });
 
 it('keeps a bare version string when the client prints one', function (): void {

@@ -19,7 +19,7 @@ That writes `config/compose.php`. The [Configuration](configuration) page explai
 
 ## What the server needs
 
-- Docker Engine with the Compose plugin, version 2.19 or newer, so `docker compose version` works. Ploi's Docker server type and Forge's Docker install both provide it; on a plain Ubuntu box, follow Docker's own install guide and add `docker-compose-plugin`.
+- Docker Engine with the Compose plugin, version 2.17 or newer, so `docker compose version` works. Ploi's Docker server type and Forge's Docker install both provide it; on a plain Ubuntu box, follow Docker's own install guide and add `docker-compose-plugin`.
 - The user that runs your deploy in the `docker` group. Without it, every command fails with `permission denied` on the daemon socket.
 
 Run the doctor after installing to confirm both:

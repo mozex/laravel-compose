@@ -25,9 +25,9 @@ use Throwable;
 class Validator
 {
     /**
-     * `pull --ignore-buildable` and `up --wait-timeout` arrived in this release.
+     * `pull --ignore-buildable` arrived in 2.15 and `up --wait-timeout` in 2.17.
      */
-    public const MINIMUM_COMPOSE_VERSION = '2.19.0';
+    public const MINIMUM_COMPOSE_VERSION = '2.17.0';
 
     public function __construct(
         protected Docker $docker,

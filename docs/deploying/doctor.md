@@ -13,7 +13,7 @@ The doctor is a preflight. Every check is something that broke a real deploy onc
 ## Host checks
 
 - The docker binary runs (the configured `docker.binary`, `docker` by default).
-- The Compose plugin is installed and is 2.19 or newer, the release that added `pull --ignore-buildable` and `up --wait-timeout`.
+- The Compose plugin is installed and is 2.17 or newer. The redeploy needs `pull --ignore-buildable` (added in 2.15) and `up --wait-timeout` (2.17).
 - The daemon answers. A `permission denied` becomes a hint naming the user and the `usermod -aG docker` command; anything else is printed as Docker reported it. With a remote host or context, the address reached is printed.
 
 ## Per-stack checks
