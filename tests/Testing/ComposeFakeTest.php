@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Illuminate\Process\PendingProcess;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Process;
 use Mozex\Compose\Enums\RedeployResult;
@@ -58,7 +59,9 @@ it('can force a failure and respects the master switch', function (): void {
 });
 
 it('keeps a process fake that was installed first', function (): void {
-    Process::fake(['*ps*' => Process::result('{"Name":"quiet-app","Service":"app","State":"running","Health":"","Status":"Up","ExitCode":0,"Publishers":[]}')]);
+    Process::fake(fn (PendingProcess $process) => in_array('ps', $process->command, true)
+        ? Process::result('{"Name":"quiet-app","Service":"app","State":"running","Health":"","Status":"Up","ExitCode":0,"Publishers":[]}')
+        : Process::result());
     Compose::fake();
     Compose::register(fakeStack(['name' => 'quiet']));
 

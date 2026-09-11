@@ -3,8 +3,10 @@
 declare(strict_types=1);
 
 use Illuminate\Process\PendingProcess;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Process;
 use Mozex\Compose\DiscoveredStack;
+use Mozex\Compose\Exceptions\ComposeException;
 use Mozex\Compose\Stack;
 use Mozex\Compose\Tests\Fixtures\Plain\Meilisearch\MeilisearchStack;
 
@@ -32,6 +34,14 @@ it('normalizes and validates names the way compose does', function (): void {
         ->and(Stack::isValidName(''))->toBeFalse();
 });
 
+it('keeps a name when its compose file cannot be read', function (): void {
+    $directory = temporaryDirectory();
+    File::put($directory.'/docker-compose.yml', "services:\n    app: [\n");
+
+    expect((new DiscoveredStack($directory))->name())->toBe(Stack::normalizeName(basename($directory)))
+        ->and(fn () => (new DiscoveredStack($directory))->compose())->toThrow(ComposeException::class, 'could not be read');
+});
+
 it('reads container names from the compose file and ships quiet defaults', function (): void {
     $stack = new MeilisearchStack;
 
@@ -50,11 +60,13 @@ it('reads container names from the compose file and ships quiet defaults', funct
 });
 
 it('runs its status, logs, exec, and down helpers through compose', function (): void {
-    Process::fake([
-        '*ps*' => Process::result('{"Name":"meilisearch","Service":"meilisearch","State":"running","Health":"healthy","Status":"Up","ExitCode":0,"Publishers":[]}'),
-        '*logs*' => Process::result('line one'),
-        '*' => Process::result(''),
-    ]);
+    // Match on the arguments: a string pattern like `*ps*` would also match
+    // a temp path holding those letters.
+    Process::fake(fn (PendingProcess $process) => match (true) {
+        in_array('ps', $process->command, true) => Process::result('{"Name":"meilisearch","Service":"meilisearch","State":"running","Health":"healthy","Status":"Up","ExitCode":0,"Publishers":[]}'),
+        in_array('logs', $process->command, true) => Process::result('line one'),
+        default => Process::result(''),
+    });
 
     $stack = new MeilisearchStack;
     $file = $stack->composePath();
