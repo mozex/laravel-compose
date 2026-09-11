@@ -43,7 +43,8 @@
         "pestphp/pest-plugin-type-coverage": "^3.5|^4.0.0",
         "phpstan/extension-installer": "^1.4",
         "phpstan/phpstan-deprecation-rules": "^2.0",
-        "phpstan/phpstan-phpunit": "^2.0"
+        "phpstan/phpstan-phpunit": "^2.0",
+        "spatie/laravel-health": "^1.40"
     },
     "autoload": {
         "psr-4": {
