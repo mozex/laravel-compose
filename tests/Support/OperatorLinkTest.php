@@ -111,6 +111,15 @@ it('repoints a link left over from an older release', function (): void {
         ->and(File::exists($older.'/docker-compose.yml'))->toBeTrue();
 });
 
+it('refuses a plain file at the link path', function (): void {
+    $file = linkPath();
+    File::put($file, 'operator notes');
+
+    expect(fn () => app(OperatorLink::class)->refresh(fakeStack(['name' => 'noted', 'linkPath' => $file])))
+        ->toThrow(ComposeException::class, "[noted]: whatever sits at [{$file}] resisted removal")
+        ->and(File::get($file))->toBe('operator notes');
+});
+
 it('explains what is replaced and what is left alone', function (): void {
     $squatter = linkPath();
     File::ensureDirectoryExists($squatter);

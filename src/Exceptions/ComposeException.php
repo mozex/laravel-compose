@@ -86,7 +86,7 @@ class ComposeException extends RuntimeException
     {
         return new self(
             "Cannot refresh the operator link for stack [{$stack}]: whatever sits at [{$path}] resisted removal. "
-            .'An old link or an empty directory is replaced; a directory with content is left alone. '
+            .'An old link or an empty directory is replaced; a file or a directory with content is left alone. '
             .'Move it away, or make the path writable by the deploy user.',
         );
     }
@@ -102,5 +102,10 @@ class ComposeException extends RuntimeException
     public static function stackDirectoryExists(string $directory): self
     {
         return new self("The stack directory [{$directory}] already exists.");
+    }
+
+    public static function unusableStackName(string $name): self
+    {
+        return new self("[{$name}] cannot be turned into a stack name and a class name. Use a name that starts with a letter.");
     }
 }

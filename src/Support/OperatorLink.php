@@ -70,6 +70,11 @@ class OperatorLink
 
         $this->files->ensureDirectoryExists(dirname($linkPath));
 
+        // A plain file is somebody's, not ours: refuse rather than unlink it.
+        if (is_file($linkPath) && ! is_link($linkPath)) {
+            throw ComposeException::linkPathResisted($stack->name(), $linkPath);
+        }
+
         // Remove what holds the path without ever following it: rmdir and
         // unlink take a link, a junction, or an empty directory on both
         // platforms. A directory with content is never deleted; it is refused
