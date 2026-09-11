@@ -17,7 +17,7 @@ beforeEach(function (): void {
 function healthyDaemon(): void
 {
     Process::fake([
-        '*version*--format*' => Process::result('29.0.1'),
+        '*--version*' => Process::result('Docker version 29.0.1, build a7dcaa6'),
         '*compose*version*' => Process::result('2.40.0'),
         '*info*--format*' => Process::result('29.0.1'),
         '*' => Process::result(''),
@@ -48,11 +48,12 @@ it('stops at a docker binary that cannot run', function (): void {
         ->and($report->errors()[0]->message)->toContain('[/opt/nope/docker] could not run: not found');
 
     Process::assertRanTimes(fn (PendingProcess $process): bool => str_contains(implode(' ', $process->command), 'version'), 1);
+    Process::assertRan(fn (PendingProcess $process): bool => $process->command === ['/opt/nope/docker', '--version']);
 });
 
 it('flags a missing compose plugin and an unreachable daemon, with the docker-group hint', function (): void {
     Process::fake([
-        '*version*--format*' => Process::result('29.0.1'),
+        '*--version*' => Process::result('Docker version 29.0.1, build a7dcaa6'),
         '*compose*version*' => Process::result('', 'unknown command', 1),
         '*info*--format*' => Process::result('', 'permission denied while trying to connect to the Docker daemon socket', 1),
     ]);
@@ -65,12 +66,18 @@ it('flags a missing compose plugin and an unreachable daemon, with the docker-gr
         ->and($errors[1])->toContain('sudo usermod -aG docker');
 
     Process::fake([
-        '*version*--format*' => Process::result('29.0.1'),
+        '*--version*' => Process::result('Docker version 29.0.1, build a7dcaa6'),
         '*compose*version*' => Process::result('2.40.0'),
         '*info*--format*' => Process::result('', 'Cannot connect to the Docker daemon', 1),
     ]);
 
     expect(app(Validator::class)->run()->errors()[0]->message)->toBe('The Docker daemon is not reachable: Cannot connect to the Docker daemon');
+});
+
+it('keeps a bare version string when the client prints one', function (): void {
+    Process::fake(['*' => Process::result('29.0.1')]);
+
+    expect(app(Validator::class)->run()->notes()[0]->message)->toBe('Docker client 29.0.1.');
 });
 
 it('mentions the remote target when the daemon lives elsewhere', function (): void {

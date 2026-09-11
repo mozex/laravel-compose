@@ -68,7 +68,10 @@ class Validator
      */
     protected function checkDaemon(array &$problems): void
     {
-        $client = $this->docker->run(['version', '--format', '{{.Client.Version}}'], null, null, 15);
+        // `docker --version` never talks to the daemon, so its exit code says
+        // whether the binary runs; `docker version` fails whenever the daemon
+        // is unreachable, which would hide the real reason below.
+        $client = $this->docker->run(['--version'], null, null, 15);
 
         if ($client->failed()) {
             $problems[] = Problem::error("The docker binary [{$this->docker->binary()}] could not run: ".$this->trim($client->errorOutput().$client->output()));
@@ -76,7 +79,7 @@ class Validator
             return;
         }
 
-        $problems[] = Problem::info('Docker client '.$this->trim($client->output()).'.');
+        $problems[] = Problem::info('Docker client '.$this->clientVersion($client->output()).'.');
 
         $compose = $this->docker->run(['compose', 'version', '--short'], null, null, 15);
 
@@ -335,6 +338,18 @@ class Validator
         $target = @readlink($path);
 
         return $target === false || rtrim(str_replace('\\', '/', $target), '/') === rtrim(str_replace('\\', '/', $path), '/');
+    }
+
+    /**
+     * `Docker version 29.0.1, build a7dcaa6` reduced to the version.
+     */
+    protected function clientVersion(string $output): string
+    {
+        if (preg_match('/^Docker version ([^,\s]+)/i', trim($output), $match) === 1) {
+            return $match[1];
+        }
+
+        return $this->trim($output);
     }
 
     protected function user(): string
