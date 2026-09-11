@@ -33,7 +33,9 @@ use Throwable;
  *    wedges it with a name conflict; a missing container is the normal case.
  * 6. `compose up --detach --remove-orphans`, with --wait when the stack asks.
  *
- * Idempotent end to end, so it is safe to run outside a deploy.
+ * A step that runs past its timeout counts as a failed step: ignored for
+ * pull and rm, fatal for build and up. Idempotent end to end, so it is safe
+ * to run outside a deploy.
  */
 class RedeployStack
 {
@@ -59,7 +61,7 @@ class RedeployStack
             return RedeployResult::Skipped;
         }
 
-        $this->envFile->write($this->envPath($stack), $stack->environment(), $stack->name());
+        $this->writeEnvironment($stack);
         $this->refreshLink($stack, $output);
 
         if ($stack->build()) {
@@ -122,6 +124,23 @@ class RedeployStack
         $file = $this->config->get('compose.env_file', '.env');
 
         return $stack->directory().DIRECTORY_SEPARATOR.(is_string($file) && $file !== '' ? $file : '.env');
+    }
+
+    /**
+     * A stack with nothing to write leaves an existing env file alone: for a
+     * class-less stack, a file written by hand is the only way to provide a
+     * value, and overwriting it with an empty one would wipe it silently.
+     */
+    protected function writeEnvironment(Stack $stack): void
+    {
+        $path = $this->envPath($stack);
+        $environment = $stack->environment();
+
+        if ($environment === [] && is_file($path) && filesize($path) > 0) {
+            return;
+        }
+
+        $this->envFile->write($path, $environment, $stack->name());
     }
 
     protected function upTimeout(Stack $stack): int

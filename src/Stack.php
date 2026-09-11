@@ -181,7 +181,10 @@ abstract class Stack
         return $this->status()->isHealthy();
     }
 
-    public function logs(?string $service = null, int $tail = 100): string
+    /**
+     * @param  int|string  $tail  A number of lines, or `all`
+     */
+    public function logs(?string $service = null, int|string $tail = 100): string
     {
         return $this->docker()->logs($this, $service, $tail);
     }

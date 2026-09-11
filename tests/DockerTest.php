@@ -2,9 +2,13 @@
 
 declare(strict_types=1);
 
+use Illuminate\Process\Exceptions\ProcessTimedOutException;
 use Illuminate\Process\PendingProcess;
+use Illuminate\Process\ProcessResult;
 use Illuminate\Support\Facades\Process;
 use Mozex\Compose\Docker;
+use Symfony\Component\Process\Exception\ProcessTimedOutException as SymfonyTimedOutException;
+use Symfony\Component\Process\Process as SymfonyProcess;
 
 it('builds commands from the configured binary and context', function (): void {
     $docker = app(Docker::class);
@@ -56,9 +60,30 @@ it('names the project, directory, file, and profiles on every compose call', fun
     expect($docker->composeArguments($stack, ['up']))->toBe([
         'compose', '--project-name', 'meili', '--project-directory', $directory, '--file', $file,
         '--profile', 'tls', '--profile', 'metrics', 'up',
-    ])->and($docker->composeArguments($stack, ['down'], withProfiles: false))->toBe([
-        'compose', '--project-name', 'meili', '--project-directory', $directory, '--file', $file, 'down',
     ]);
+});
+
+it('turns a process timeout into a failed result instead of an exception', function (): void {
+    Process::fake(function (PendingProcess $process) {
+        $symfony = new SymfonyProcess($process->command);
+
+        throw new ProcessTimedOutException(new SymfonyTimedOutException($symfony, SymfonyTimedOutException::TYPE_GENERAL), new ProcessResult($symfony));
+    });
+
+    $result = app(Docker::class)->run(['info'], null, null, 1);
+
+    expect($result->failed())->toBeTrue()
+        ->and(app(Docker::class)->status(fakeStack())->isEmpty())->toBeTrue();
+});
+
+it('passes `all` through to the log tail', function (): void {
+    Process::fake();
+
+    app(Docker::class)->logs(fakeStack(), tail: 'all');
+    app(Docker::class)->logs(fakeStack(), tail: 25);
+
+    Process::assertRan(fn (PendingProcess $process): bool => array_slice($process->command, -2) === ['--tail', 'all']);
+    Process::assertRan(fn (PendingProcess $process): bool => array_slice($process->command, -2) === ['--tail', '25']);
 });
 
 it('runs processes with the stack directory, timeout, and daemon environment', function (): void {

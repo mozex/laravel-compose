@@ -2,7 +2,9 @@
 
 declare(strict_types=1);
 
+use Illuminate\Process\Exceptions\ProcessTimedOutException;
 use Illuminate\Process\PendingProcess;
+use Illuminate\Process\ProcessResult;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Exceptions;
 use Illuminate\Support\Facades\File;
@@ -16,6 +18,8 @@ use Mozex\Compose\Events\StackSkippedEvent;
 use Mozex\Compose\Exceptions\ComposeException;
 use Mozex\Compose\Stack;
 use Mozex\Compose\Support\OperatorLink;
+use Symfony\Component\Process\Exception\ProcessTimedOutException as SymfonyTimedOutException;
+use Symfony\Component\Process\Process as SymfonyProcess;
 
 function composePrefix(Stack $stack): array
 {
@@ -112,6 +116,48 @@ it('reports a failed compose up while ignoring the pull and sweep exit codes', f
 
     Event::assertDispatched(StackRedeployFailedEvent::class, fn (StackRedeployFailedEvent $event): bool => $event->step === 'up' && $event->result->failed());
     Event::assertNotDispatched(StackRedeployedEvent::class);
+});
+
+it('treats a timed-out up as a failure and a timed-out pull as noise', function (): void {
+    // One closure per scenario: array fakes merge across calls, and a `*`
+    // catch-all from an earlier call would shadow a later specific pattern.
+    $timeoutOn = fn (string $step) => function (PendingProcess $process) use ($step) {
+        if (! in_array($step, $process->command, true)) {
+            return Process::result();
+        }
+
+        $symfony = new SymfonyProcess($process->command);
+
+        throw new ProcessTimedOutException(new SymfonyTimedOutException($symfony, SymfonyTimedOutException::TYPE_GENERAL), new ProcessResult($symfony));
+    };
+    Event::fake();
+    $stack = fakeStack(['name' => 'slow']);
+
+    Process::fake($timeoutOn('pull'));
+
+    expect(app(RedeployStack::class)->execute($stack))->toBe(RedeployResult::Redeployed);
+
+    Process::fake($timeoutOn('up'));
+
+    expect(app(RedeployStack::class)->execute($stack))->toBe(RedeployResult::Failed);
+
+    Event::assertDispatched(StackRedeployFailedEvent::class, fn (StackRedeployFailedEvent $event): bool => $event->step === 'up' && $event->result->failed());
+});
+
+it('leaves a hand-written env file alone when the stack has nothing to write', function (): void {
+    Process::fake();
+    $stack = fakeStack(['environment' => []]);
+    File::put($stack->directory().'/.env', "HAND_WRITTEN=yes\n");
+
+    app(RedeployStack::class)->execute($stack);
+
+    expect(File::get($stack->directory().'/.env'))->toBe("HAND_WRITTEN=yes\n");
+
+    $fresh = fakeStack(['environment' => []]);
+
+    app(RedeployStack::class)->execute($fresh);
+
+    expect(File::get($fresh->directory().'/.env'))->toBe('');
 });
 
 it('refuses an env value carrying a newline before running anything', function (): void {

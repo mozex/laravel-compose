@@ -7,6 +7,7 @@ namespace Mozex\Compose;
 use Closure;
 use Illuminate\Contracts\Config\Repository;
 use Illuminate\Contracts\Process\ProcessResult;
+use Illuminate\Process\Exceptions\ProcessTimedOutException;
 use Illuminate\Support\Facades\Process;
 use Mozex\Compose\Support\StackStatus;
 
@@ -79,6 +80,10 @@ class Docker
     }
 
     /**
+     * A process that runs past its timeout comes back as a failed result, the
+     * same shape as any other failure, so callers decide what a stalled pull
+     * or a hung `up` means instead of the exception ending the whole run.
+     *
      * @param  list<string>  $arguments
      * @param  int  $timeout  Seconds, or 0 to let the process run until it exits
      */
@@ -90,7 +95,11 @@ class Docker
             $process = $process->path($path);
         }
 
-        return $process->run($this->command($arguments, $stack), $output);
+        try {
+            return $process->run($this->command($arguments, $stack), $output);
+        } catch (ProcessTimedOutException $exception) {
+            return $exception->result;
+        }
     }
 
     /**
@@ -98,16 +107,16 @@ class Docker
      *
      * @param  list<string>  $arguments
      */
-    public function compose(Stack $stack, array $arguments, int $timeout = 60, ?Closure $output = null, bool $withProfiles = true): ProcessResult
+    public function compose(Stack $stack, array $arguments, int $timeout = 60, ?Closure $output = null): ProcessResult
     {
-        return $this->run($this->composeArguments($stack, $arguments, $withProfiles), $stack, $stack->directory(), $timeout, $output);
+        return $this->run($this->composeArguments($stack, $arguments), $stack, $stack->directory(), $timeout, $output);
     }
 
     /**
      * @param  list<string>  $arguments
      * @return list<string>
      */
-    public function composeArguments(Stack $stack, array $arguments, bool $withProfiles = true): array
+    public function composeArguments(Stack $stack, array $arguments): array
     {
         $command = [
             'compose',
@@ -116,11 +125,9 @@ class Docker
             '--file', $stack->composePath(),
         ];
 
-        if ($withProfiles) {
-            foreach ($stack->profiles() as $profile) {
-                $command[] = '--profile';
-                $command[] = $profile;
-            }
+        foreach ($stack->profiles() as $profile) {
+            $command[] = '--profile';
+            $command[] = $profile;
         }
 
         return [...$command, ...$arguments];
@@ -133,9 +140,12 @@ class Docker
         return StackStatus::fromJson($stack->name(), $result->successful() ? $result->output() : '');
     }
 
-    public function logs(Stack $stack, ?string $service = null, int $tail = 100, ?Closure $output = null): string
+    /**
+     * @param  int|string  $tail  A number of lines, or `all`
+     */
+    public function logs(Stack $stack, ?string $service = null, int|string $tail = 100, ?Closure $output = null): string
     {
-        $arguments = ['logs', '--no-color', '--tail', (string) max(0, $tail)];
+        $arguments = ['logs', '--no-color', '--tail', $tail === 'all' ? 'all' : (string) max(0, (int) $tail)];
 
         if ($service !== null) {
             $arguments[] = $service;
