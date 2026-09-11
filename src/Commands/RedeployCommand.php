@@ -73,11 +73,16 @@ class RedeployCommand extends Command
                 continue;
             }
 
-            $keys = array_keys($stack->environment());
-            $this->line('  env file: '.$action->envPath($stack).($keys === [] ? ' (empty)' : ' with '.implode(', ', $keys)));
+            try {
+                $keys = array_keys($stack->environment());
+                $this->line('  env file: '.$action->envPath($stack).($keys === [] ? ' (empty)' : ' with '.implode(', ', $keys)));
 
-            foreach ($this->plannedCommands($stack, $action, $docker) as $command) {
-                $this->line('  $ '.$command);
+                foreach ($this->plannedCommands($stack, $action, $docker) as $command) {
+                    $this->line('  $ '.$command);
+                }
+            } catch (ComposeException $exception) {
+                // The real run fails this stack and moves on; the plan says so.
+                $this->line('  would fail: '.$exception->getMessage());
             }
         }
 

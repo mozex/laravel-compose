@@ -66,6 +66,20 @@ it('prints the plan on a dry run without touching docker or the env file', funct
     Process::assertNothingRan();
 });
 
+it('lists a stack whose compose file cannot be read in the dry run and carries on', function (): void {
+    Process::fake();
+    Compose::register(fakeStack(['name' => 'garbled', 'compose' => 'services:
+    app: [
+']))->register(fakeStack(['name' => 'fine']));
+
+    artisan('compose:redeploy', ['--dry-run' => true])
+        ->expectsOutputToContain('would fail: The compose file [')
+        ->expectsOutputToContain('$ docker rm -f fine-app')
+        ->assertSuccessful();
+
+    Process::assertNothingRan();
+});
+
 it('includes the build step in a dry run for building stacks', function (): void {
     Process::fake();
     Compose::register(fakeStack(['name' => 'built', 'build' => true, 'pull' => false, 'containers' => []]));
