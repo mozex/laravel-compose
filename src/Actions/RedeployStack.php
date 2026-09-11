@@ -34,8 +34,10 @@ use Throwable;
  * 6. `compose up --detach --remove-orphans`, with --wait when the stack asks.
  *
  * A step that runs past its timeout counts as a failed step: ignored for
- * pull and rm, fatal for build and up. Idempotent end to end, so it is safe
- * to run outside a deploy.
+ * pull and rm, fatal for build and up. A value that cannot be written to the
+ * env file fails the stack the same way, so one stack's bad config never
+ * stops the others from getting their turn. Idempotent end to end, so it is
+ * safe to run outside a deploy.
  */
 class RedeployStack
 {
@@ -61,7 +63,18 @@ class RedeployStack
             return RedeployResult::Skipped;
         }
 
-        $this->writeEnvironment($stack);
+        try {
+            $this->writeEnvironment($stack);
+        } catch (Throwable $exception) {
+            $this->events->dispatch(new StackRedeployFailedEvent($stack, 'env', null, $exception));
+
+            if ($output !== null) {
+                $output('err', "The env file for [{$stack->name()}] could not be written: {$exception->getMessage()}".PHP_EOL);
+            }
+
+            return RedeployResult::Failed;
+        }
+
         $this->refreshLink($stack, $output);
 
         if ($stack->build()) {

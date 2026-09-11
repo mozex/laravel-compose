@@ -48,6 +48,13 @@ it('redeploys every stack or only the named one', function (): void {
         ->and(fn () => ComposeFacade::redeploy('nope'))->toThrow(ComposeException::class, '[nope]');
 });
 
+it('gives every stack its turn when one cannot write its env file', function (): void {
+    Process::fake();
+    ComposeFacade::register(fakeStack(['name' => 'broken', 'environment' => ['BAD' => "a\nb"]]))->register(fakeStack(['name' => 'fine']));
+
+    expect(ComposeFacade::redeploy())->toBe(['broken' => RedeployResult::Failed, 'fine' => RedeployResult::Redeployed]);
+});
+
 it('accepts a stack class name at registration', function (): void {
     ComposeFacade::register(MeilisearchStack::class);
 

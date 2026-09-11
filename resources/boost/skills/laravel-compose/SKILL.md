@@ -129,7 +129,7 @@ $stack->exec('meilisearch', ['ls', '/meili_data']);   // maintenance inside a co
 $stack->down();
 ```
 
-Health: `Health::checks([StacksCheck::new()])` with spatie/laravel-health. Events: `StackRedeployingEvent`, `StackSkippedEvent`, `StackRedeployedEvent`, `StackRedeployFailedEvent` (with `step` and `result`).
+Health: `Health::checks([StacksCheck::new()])` with spatie/laravel-health. Events: `StackRedeployingEvent`, `StackSkippedEvent`, `StackRedeployedEvent`, `StackRedeployFailedEvent` (`step` is `env`, `build`, or `up`; `reason()` has the message).
 
 ## Testing
 

@@ -160,14 +160,34 @@ it('leaves a hand-written env file alone when the stack has nothing to write', f
     expect(File::get($fresh->directory().'/.env'))->toBe('');
 });
 
-it('refuses an env value carrying a newline before running anything', function (): void {
+it('fails the stack on an env value it cannot write, before running anything', function (): void {
     Process::fake();
-    $stack = fakeStack(['environment' => ['BAD' => "a\nb"]]);
+    Event::fake();
+    $stack = fakeStack(['name' => 'bad-env', 'environment' => ['BAD' => "a\nb"]]);
+    $lines = [];
 
-    expect(fn () => app(RedeployStack::class)->execute($stack))->toThrow(ComposeException::class, 'line break')
-        ->and(File::exists($stack->directory().'/.env'))->toBeFalse();
+    $result = app(RedeployStack::class)->execute($stack, function (string $type, string $buffer) use (&$lines): void {
+        $lines[] = $type.':'.$buffer;
+    });
+
+    expect($result)->toBe(RedeployResult::Failed)
+        ->and(File::exists($stack->directory().'/.env'))->toBeFalse()
+        ->and(implode('', $lines))->toContain('err:The env file for [bad-env] could not be written: The environment value for [BAD] on stack [bad-env] contains a line break');
 
     Process::assertNothingRan();
+    Event::assertDispatched(StackRedeployFailedEvent::class, fn (StackRedeployFailedEvent $event): bool => $event->step === 'env'
+        && $event->result === null
+        && $event->exception instanceof ComposeException
+        && str_contains($event->reason(), 'contains a line break'));
+});
+
+it('carries the process reason on a failed step', function (): void {
+    Process::fake(fn (PendingProcess $process) => in_array('up', $process->command, true) ? Process::result('stdout only', '', 1) : Process::result());
+    Event::fake();
+
+    app(RedeployStack::class)->execute(fakeStack());
+
+    Event::assertDispatched(StackRedeployFailedEvent::class, fn (StackRedeployFailedEvent $event): bool => $event->reason() === 'stdout only');
 });
 
 it('reports a wedged operator link without failing the rollout', function (): void {
