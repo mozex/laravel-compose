@@ -24,6 +24,11 @@ use Throwable;
  */
 class Validator
 {
+    /**
+     * `pull --ignore-buildable` and `up --wait-timeout` arrived in this release.
+     */
+    public const MINIMUM_COMPOSE_VERSION = '2.19.0';
+
     public function __construct(
         protected Docker $docker,
         protected StackRegistry $registry,
@@ -91,7 +96,15 @@ class Validator
         }
 
         if ($compose->successful()) {
-            $problems[] = Problem::info('Docker Compose '.$this->trim($compose->output()).'.');
+            $version = ltrim($this->trim($compose->output()), 'v');
+            $problems[] = Problem::info("Docker Compose {$version}.");
+
+            if (preg_match('/^\d+\.\d+/', $version) === 1 && version_compare($version, self::MINIMUM_COMPOSE_VERSION, '<')) {
+                $problems[] = Problem::error(
+                    "Docker Compose {$version} is older than ".self::MINIMUM_COMPOSE_VERSION.', which the redeploy needs for '
+                    .'`pull --ignore-buildable` and `up --wait-timeout`. Update docker-compose-plugin.',
+                );
+            }
         }
 
         $daemon = $this->docker->run(['info', '--format', '{{.ServerVersion}}'], null, null, 20);
@@ -141,6 +154,22 @@ class Validator
         $strings = $handWritten ? EnvFile::parse((string) file_get_contents($envPath)) : $this->stringValues($environment);
 
         $missing = array_values(array_diff($compose->requiredVariables(), array_keys($strings)));
+
+        // Compose reads the shell before the env file, so a variable this
+        // process has (HOME, PATH, a CI secret) resolves on this machine. It
+        // is not the stack's to control, which is worth a warning, not a stop.
+        $fromShell = array_values(array_filter($missing, fn (string $variable): bool => getenv($variable) !== false));
+        $missing = array_values(array_diff($missing, $fromShell));
+
+        if ($fromShell !== []) {
+            $problems[] = Problem::warning(
+                'The compose file consumes '.implode(', ', $fromShell).' without a default, and environment() does not provide '
+                .(count($fromShell) === 1 ? 'it. It is' : 'them. They are').' set in this shell, so compose reads '
+                .(count($fromShell) === 1 ? 'it' : 'them').' from whoever runs the deploy; write '
+                .(count($fromShell) === 1 ? 'it' : 'them').' from environment() to make the value explicit.',
+                $name,
+            );
+        }
 
         if ($missing !== []) {
             $problems[] = Problem::error(

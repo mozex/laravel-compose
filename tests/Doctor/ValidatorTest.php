@@ -79,6 +79,20 @@ it('flags a missing compose plugin and an unreachable daemon, with the docker-gr
     expect(app(Validator::class)->run()->errors()[0]->message)->toBe('The Docker daemon is not reachable: Cannot connect to the Docker daemon');
 });
 
+it('refuses a compose plugin older than the redeploy needs', function (): void {
+    Process::fake([
+        '*--version*' => Process::result('Docker version 29.0.1, build a7dcaa6'),
+        '*compose*version*' => Process::result('v2.17.3'),
+        '*info*--format*' => Process::result('29.0.1'),
+    ]);
+
+    $report = app(Validator::class)->run();
+
+    expect($report->notes()[1]->message)->toBe('Docker Compose 2.17.3.')
+        ->and($report->errors())->toHaveCount(1)
+        ->and($report->errors()[0]->message)->toContain('Docker Compose 2.17.3 is older than 2.19.0');
+});
+
 it('keeps a bare version string when the client prints one', function (): void {
     Process::fake(['*' => Process::result('29.0.1')]);
 
@@ -105,6 +119,35 @@ it('reports a variable the compose file needs and the stack does not write', fun
     expect($report->errors())->toHaveCount(1)
         ->and($report->errors()[0]->stack)->toBe('needy')
         ->and($report->errors()[0]->message)->toBe('The compose file consumes SECRET without a default, but environment() does not provide it.');
+});
+
+it('warns instead of failing for a variable the shell provides', function (): void {
+    Compose::register(fakeStack([
+        'name' => 'shelly',
+        'compose' => "name: shelly\nservices:\n    app:\n        image: alpine\n        environment:\n            SEARCH_PATH: \${PATH}\n            SECRET: \${SECRET}\n",
+        'environment' => [],
+    ]));
+
+    $report = app(Validator::class)->run(withDaemon: false);
+
+    expect($report->errors())->toHaveCount(1)
+        ->and($report->errors()[0]->message)->toBe('The compose file consumes SECRET without a default, but environment() does not provide it.')
+        ->and($report->warnings())->toHaveCount(1)
+        ->and($report->warnings()[0]->message)->toContain('The compose file consumes PATH without a default, and environment() does not provide it. It is set in this shell');
+});
+
+it('reports a broken compose file per stack and still checks the others', function (): void {
+    $parent = temporaryDirectory();
+    File::ensureDirectoryExists($parent.'/Garbled');
+    File::put($parent.'/Garbled/docker-compose.yml', "services:\n    app: [\n");
+    File::ensureDirectoryExists($parent.'/Needy');
+    File::put($parent.'/Needy/docker-compose.yml', "name: needy\nservices:\n    app:\n        image: alpine\n        environment:\n            SECRET: \${SECRET}\n");
+    config()->set('compose.discover', [$parent]);
+
+    $report = app(Validator::class)->run(withDaemon: false);
+
+    expect(array_map(fn ($problem) => $problem->stack, $report->errors()))->toBe(['garbled', 'needy'])
+        ->and($report->errors()[0]->message)->toContain('could not be read');
 });
 
 it('reads a hand-written env file for a stack with nothing to write', function (): void {
