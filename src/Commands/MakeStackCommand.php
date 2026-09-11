@@ -16,7 +16,7 @@ class MakeStackCommand extends Command
 {
     protected $signature = 'compose:make
         {name : The stack name, for example meilisearch}
-        {--path= : Parent directory for the new stack (defaults to the first discovery directory)}';
+        {--path= : Parent directory for the new stack, absolute or relative to the app root (defaults to the first discovery directory)}';
 
     protected $description = 'Scaffold a Docker Compose stack: a compose file and the Stack class beside it';
 
@@ -25,14 +25,14 @@ class MakeStackCommand extends Command
         /** @var string $name */
         $name = $this->argument('name');
         $slug = Stack::normalizeName($name);
+        $class = Str::studly($slug);
 
-        if (! Stack::isValidName($slug)) {
-            $this->components->error("[{$name}] cannot be turned into a valid stack name.");
+        if (! Stack::isValidName($slug) || preg_match('/^[A-Za-z]/', $class) !== 1) {
+            $this->components->error(ComposeException::unusableStackName($name)->getMessage());
 
             return self::FAILURE;
         }
 
-        $class = Str::studly($slug);
         $directory = rtrim($this->parentDirectory($config), '/\\').DIRECTORY_SEPARATOR.$class;
 
         if ($files->exists($directory)) {
@@ -54,6 +54,7 @@ class MakeStackCommand extends Command
             '{{ class }}' => $class.'Stack',
             '{{ slug }}' => $slug,
             '{{ upper }}' => strtoupper(str_replace('-', '_', $slug)),
+            '{{ project }}' => $this->appSlug($config).'-'.$slug,
         ];
 
         $files->ensureDirectoryExists($directory);
@@ -65,7 +66,7 @@ class MakeStackCommand extends Command
             );
         }
 
-        $this->components->info("Stack [{$slug}] scaffolded in [{$directory}].");
+        $this->components->info("Stack [{$replacements['{{ project }}']}] scaffolded in [{$directory}].");
         $this->components->bulletList([
             'Edit docker-compose.yml: the image, ports, volumes, and healthcheck.',
             "Fill environment() in {$class}Stack.php with the values the compose file consumes.",
@@ -81,17 +82,39 @@ class MakeStackCommand extends Command
         $path = $this->option('path');
 
         if ($path !== null && trim($path) !== '') {
-            return $path;
+            return $this->absolute(trim($path));
         }
 
         $discover = $config->get('compose.discover', []);
 
         foreach (is_array($discover) ? $discover : [] as $candidate) {
             if (is_string($candidate) && $candidate !== '' && ! str_contains($candidate, '*')) {
-                return $candidate;
+                return $this->absolute($candidate);
             }
         }
 
         return $this->laravel->basePath('app'.DIRECTORY_SEPARATOR.'Docker');
+    }
+
+    protected function absolute(string $path): string
+    {
+        if (preg_match('/^([A-Za-z]:[\\\\\/]|[\\\\\/])/', $path) === 1) {
+            return $path;
+        }
+
+        return $this->laravel->basePath($path);
+    }
+
+    /**
+     * Container and project names are global on a Docker host. Prefixing them
+     * with the app keeps two apps that both scaffold a `meilisearch` stack from
+     * sweeping each other's containers.
+     */
+    protected function appSlug(Repository $config): string
+    {
+        $name = $config->get('app.name');
+        $slug = Stack::normalizeName(is_string($name) ? $name : '');
+
+        return $slug === '' ? 'app' : $slug;
     }
 }

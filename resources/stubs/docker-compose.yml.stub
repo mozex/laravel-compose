@@ -1,9 +1,11 @@
-name: {{ slug }}
+# Project and container names are global on a Docker host, so they carry the
+# app's name: two apps on one server can each own a "{{ slug }}" stack.
+name: {{ project }}
 
 services:
     {{ slug }}:
         image: your/image:tag
-        container_name: {{ slug }}
+        container_name: {{ project }}
         restart: unless-stopped
         # Publish on loopback. Docker writes its own firewall rules and bypasses
         # UFW, so a publish without an address is reachable from the internet.
@@ -18,7 +20,7 @@ services:
             retries: 3
             start_period: 10s
         volumes:
-            - '{{ slug }}-data:/data'
+            - '{{ project }}-data:/data'
         logging:
             driver: json-file
             options:
@@ -26,5 +28,5 @@ services:
                 max-file: '3'
 
 volumes:
-    {{ slug }}-data:
+    {{ project }}-data:
         driver: local

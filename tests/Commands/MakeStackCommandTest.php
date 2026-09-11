@@ -12,11 +12,12 @@ beforeEach(function (): void {
     $this->root = temporaryDirectory();
     app()->instance(NamespaceResolver::class, new NamespaceResolver(['App\\Docker\\' => [$this->root]]));
     config()->set('compose.discover', [$this->root, fixturesPath('Modules/*/Docker')]);
+    config()->set('app.name', 'Shop Admin');
 });
 
 it('scaffolds a stack class, a compose file, and a gitignore under the first discovery directory', function (): void {
     artisan('compose:make', ['name' => 'Image Tools'])
-        ->expectsOutputToContain('Stack [image-tools] scaffolded in')
+        ->expectsOutputToContain('Stack [shop-admin-image-tools] scaffolded in')
         ->assertSuccessful();
 
     $directory = $this->root.'/ImageTools';
@@ -26,14 +27,23 @@ it('scaffolds a stack class, a compose file, and a gitignore under the first dis
     expect($class)->toContain('namespace App\\Docker\\ImageTools;')
         ->and($class)->toContain('class ImageToolsStack extends Stack')
         ->and($class)->toContain("'IMAGE_TOOLS_PORT' => (int) Config::get('services.image-tools.port', 8080)")
-        ->and($compose->name())->toBe('image-tools')
-        ->and($compose->containerNames())->toBe(['image-tools'])
+        ->and($compose->name())->toBe('shop-admin-image-tools')
+        ->and($compose->containerNames())->toBe(['shop-admin-image-tools'])
+        ->and(array_keys($compose->services()))->toBe(['image-tools'])
         ->and($compose->requiredVariables())->toBe([])
         ->and($compose->publicPublishes())->toBe([])
         ->and(File::get($directory.'/.gitignore'))->toBe(".env\n");
 });
 
-it('honours an explicit path and refuses to overwrite', function (): void {
+it('falls back to a plain app prefix when the app has no usable name', function (): void {
+    config()->set('app.name', '');
+
+    artisan('compose:make', ['name' => 'meilisearch'])->assertSuccessful();
+
+    expect(ComposeFile::load($this->root.'/Meilisearch/docker-compose.yml')->name())->toBe('app-meilisearch');
+});
+
+it('honours an absolute path and refuses to overwrite', function (): void {
     $custom = $this->root.'/custom';
 
     artisan('compose:make', ['name' => 'meilisearch', '--path' => $custom])->assertSuccessful();
@@ -46,8 +56,22 @@ it('honours an explicit path and refuses to overwrite', function (): void {
         ->assertFailed();
 });
 
-it('refuses an unusable name and a directory outside every autoloaded namespace', function (): void {
-    artisan('compose:make', ['name' => '!!!'])->expectsOutputToContain('cannot be turned into a valid stack name')->assertFailed();
+it('resolves a relative path against the app root', function (): void {
+    $root = app()->basePath('Modules'.DIRECTORY_SEPARATOR.'Search');
+    app()->instance(NamespaceResolver::class, new NamespaceResolver(['Modules\\Search\\' => [$root]]));
+
+    artisan('compose:make', ['name' => 'meilisearch', '--path' => 'Modules/Search/Docker'])->assertSuccessful();
+
+    expect(File::get($root.'/Docker/Meilisearch/MeilisearchStack.php'))->toContain('namespace Modules\\Search\\Docker\\Meilisearch;');
+
+    File::deleteDirectory($root);
+});
+
+it('refuses names that cannot become a class, and a directory outside every autoloaded namespace', function (): void {
+    artisan('compose:make', ['name' => '!!!'])->expectsOutputToContain('Use a name that starts with a letter')->assertFailed();
+    artisan('compose:make', ['name' => '2fa'])->expectsOutputToContain('Use a name that starts with a letter')->assertFailed();
+
+    expect(File::exists($this->root.'/2fa'))->toBeFalse();
 
     artisan('compose:make', ['name' => 'lost', '--path' => temporaryDirectory()])
         ->expectsOutputToContain('No PSR-4 autoload mapping')
