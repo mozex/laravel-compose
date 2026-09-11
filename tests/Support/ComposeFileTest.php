@@ -80,6 +80,10 @@ it('ignores commented-out references and looks inside nested fallbacks', functio
     expect(ComposeFile::load($directory.'/compose.yaml')->requiredVariables())->toBe(['PLAIN_VAR', 'SHARED_KEY']);
 });
 
+it('scans past an unclosed brace', function (): void {
+    expect(array_column(ComposeFile::variables('${UNCLOSED and ${OTHER} and $THIRD'), 'name'))->toBe(['OTHER', 'THIRD']);
+});
+
 it('lists every reference in a string, outermost first', function (): void {
     expect(ComposeFile::variables('${A:-${B}} $C $$D ${E'))->toBe([
         ['name' => 'A', 'operator' => ':-', 'argument' => '${B}'],

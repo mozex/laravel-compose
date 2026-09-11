@@ -250,7 +250,6 @@ class ComposeFile
     public static function variables(string $text): array
     {
         $found = [];
-        $length = strlen($text);
         $position = 0;
 
         while (($position = strpos($text, '$', $position)) !== false) {
@@ -265,8 +264,11 @@ class ComposeFile
             if ($next === '{') {
                 $close = static::matchingBrace($text, $position + 1);
 
+                // An unclosed brace is not a reference; keep scanning past it.
                 if ($close === null) {
-                    break;
+                    $position += 2;
+
+                    continue;
                 }
 
                 $reference = static::parseReference(substr($text, $position + 2, $close - $position - 2));
