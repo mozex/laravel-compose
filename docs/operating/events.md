@@ -10,7 +10,7 @@ Each stack fires events as a redeploy goes through it. They carry the `Stack` ob
 | `Mozex\Compose\Events\StackRedeployingEvent` | Before anything runs, including for stacks that turn out to be disabled. |
 | `Mozex\Compose\Events\StackSkippedEvent` | The stack or the master switch is disabled. |
 | `Mozex\Compose\Events\StackRedeployedEvent` | `up` succeeded. |
-| `Mozex\Compose\Events\StackRedeployFailedEvent` | The env file couldn't be written, or `build` or `up` failed. `$event->step` is `env`, `build`, or `up`. `$event->result` holds the failed `ProcessResult` for `build` and `up`, `$event->exception` the throwable for `env`, and `$event->reason()` gives you the message either way. |
+| `Mozex\Compose\Events\StackRedeployFailedEvent` | The compose file couldn't be read, the env file couldn't be written, or `build` or `up` failed. `$event->step` is `compose`, `env`, `build`, or `up`. `$event->result` holds the failed `ProcessResult` for `build` and `up`, `$event->exception` the throwable for `compose` and `env`, and `$event->reason()` gives you the message either way. |
 
 A listener that tells the team when a container didn't come back:
 

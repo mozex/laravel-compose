@@ -11,9 +11,9 @@ use Throwable;
 class StackRedeployFailedEvent
 {
     /**
-     * @param  string  $step  The redeploy step that failed: env, build, or up
+     * @param  string  $step  The redeploy step that failed: compose, env, build, or up
      * @param  ProcessResult|null  $result  The failed process, for build and up
-     * @param  Throwable|null  $exception  What went wrong writing the env file, for env
+     * @param  Throwable|null  $exception  What went wrong reading the compose file or writing the env file, for compose and env
      */
     public function __construct(
         public readonly Stack $stack,

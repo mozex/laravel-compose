@@ -15,7 +15,7 @@ The command exits 0 when every stack was redeployed or skipped and 1 when any st
 
 The order isn't cosmetic. Each step is placed where it is because of a rollout that went wrong the other way.
 
-**1. Write the env file.** Compose reads it at `up` time. Writing it first is what makes a changed value apply. A value that can't be written (a line break, an array) fails this stack with the reason in the output, and the next stack still gets its turn.
+**1. Write the env file.** Compose reads it at `up` time. Writing it first is what makes a changed value apply. A compose file that doesn't parse, or a value that can't be written (a line break, an array), fails this stack with the reason in the output, and the next stack still gets its turn.
 
 **2. Refresh the operator link.** Only when a [link directory](hosting-platforms) is configured and the daemon is local. If the link can't be refreshed, the exception is reported through the app's exception handler and a line is printed in the deploy output, and the redeploy carries on. The link is convenience; the container is not.
 

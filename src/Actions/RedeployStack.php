@@ -14,6 +14,7 @@ use Mozex\Compose\Events\StackRedeployedEvent;
 use Mozex\Compose\Events\StackRedeployFailedEvent;
 use Mozex\Compose\Events\StackRedeployingEvent;
 use Mozex\Compose\Events\StackSkippedEvent;
+use Mozex\Compose\Exceptions\ComposeException;
 use Mozex\Compose\Stack;
 use Mozex\Compose\Support\EnvFile;
 use Mozex\Compose\Support\OperatorLink;
@@ -34,10 +35,10 @@ use Throwable;
  * 6. `compose up --detach --remove-orphans`, with --wait when the stack asks.
  *
  * A step that runs past its timeout counts as a failed step: ignored for
- * pull and rm, fatal for build and up. A value that cannot be written to the
- * env file fails the stack the same way, so one stack's bad config never
- * stops the others from getting their turn. Idempotent end to end, so it is
- * safe to run outside a deploy.
+ * pull and rm, fatal for build and up. A compose file that cannot be read or
+ * a value that cannot be written to the env file fails the stack the same
+ * way, so one stack's bad config never stops the others from getting their
+ * turn. Idempotent end to end, so it is safe to run outside a deploy.
  */
 class RedeployStack
 {
@@ -64,15 +65,15 @@ class RedeployStack
         }
 
         try {
+            $stack->compose();
+        } catch (ComposeException $exception) {
+            return $this->fail($stack, 'compose', $exception, $output);
+        }
+
+        try {
             $this->writeEnvironment($stack);
         } catch (Throwable $exception) {
-            $this->events->dispatch(new StackRedeployFailedEvent($stack, 'env', null, $exception));
-
-            if ($output !== null) {
-                $output('err', "The env file for [{$stack->name()}] could not be written: {$exception->getMessage()}".PHP_EOL);
-            }
-
-            return RedeployResult::Failed;
+            return $this->fail($stack, 'env', $exception, $output);
         }
 
         $this->refreshLink($stack, $output);
@@ -149,6 +150,20 @@ class RedeployStack
         }
 
         $this->envFile->write($this->envPath($stack), $stack->environment(), $stack->name());
+    }
+
+    /**
+     * @param  (Closure(string, string): void)|null  $output
+     */
+    protected function fail(Stack $stack, string $step, Throwable $exception, ?Closure $output): RedeployResult
+    {
+        $this->events->dispatch(new StackRedeployFailedEvent($stack, $step, null, $exception));
+
+        if ($output !== null) {
+            $output('err', "Stack [{$stack->name()}] failed at the {$step} step: {$exception->getMessage()}".PHP_EOL);
+        }
+
+        return RedeployResult::Failed;
     }
 
     protected function upTimeout(Stack $stack): int

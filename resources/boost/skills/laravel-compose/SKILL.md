@@ -108,7 +108,7 @@ Put it in the deploy script after the release is built and before anything that 
 
 Panels: set `COMPOSE_LINK_DIRECTORY=/home/{user}/containers` (Ploi's container directory) so the panel shows the stack's logs. The panel may have created that directory as root; the doctor prints the `chown` to run. Never deploy the container from the panel; it would overwrite the compose file in the release tree.
 
-Remote daemon: `COMPOSE_DOCKER_HOST=ssh://user@host` or `COMPOSE_DOCKER_CONTEXT=name`, or `host()`/`context()` on one stack. The link is skipped and bind mounts do not exist there.
+Remote daemon: `COMPOSE_DOCKER_HOST=ssh://user@host` or `COMPOSE_DOCKER_CONTEXT=name`, or `host()`/`context()` on one stack (a stack value replaces both globals; a context beside a host wins). The link is skipped and bind mounts do not exist there.
 
 ## Inspecting and stopping
 
@@ -129,7 +129,7 @@ $stack->exec('meilisearch', ['ls', '/meili_data']);   // maintenance inside a co
 $stack->down();
 ```
 
-Health: `Health::checks([StacksCheck::new()])` with spatie/laravel-health. Events: `StackRedeployingEvent`, `StackSkippedEvent`, `StackRedeployedEvent`, `StackRedeployFailedEvent` (`step` is `env`, `build`, or `up`; `reason()` has the message).
+Health: `Health::checks([StacksCheck::new()])` with spatie/laravel-health. Events: `StackRedeployingEvent`, `StackSkippedEvent`, `StackRedeployedEvent`, `StackRedeployFailedEvent` (`step` is `compose`, `env`, `build`, or `up`; `reason()` has the message).
 
 ## Testing
 

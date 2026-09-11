@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Exceptions;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Process;
 use Mozex\Compose\Actions\RedeployStack;
+use Mozex\Compose\Docker;
 use Mozex\Compose\Enums\RedeployResult;
 use Mozex\Compose\Events\StackRedeployedEvent;
 use Mozex\Compose\Events\StackRedeployFailedEvent;
@@ -89,7 +90,7 @@ it('activates the compose profiles on the way up and honours per-stack knobs', f
 });
 
 it('builds images first for a stack that asks to, and fails on a broken build', function (): void {
-    Process::fake(['*build*' => Process::result(exitCode: 1), '*' => Process::result()]);
+    Process::fake(fn (PendingProcess $process) => in_array('build', $process->command, true) ? Process::result(exitCode: 1) : Process::result());
     Event::fake();
     $stack = fakeStack(['build' => true]);
     $prefix = composePrefix($stack);
@@ -172,13 +173,48 @@ it('fails the stack on an env value it cannot write, before running anything', f
 
     expect($result)->toBe(RedeployResult::Failed)
         ->and(File::exists($stack->directory().'/.env'))->toBeFalse()
-        ->and(implode('', $lines))->toContain('err:The env file for [bad-env] could not be written: The environment value for [BAD] on stack [bad-env] contains a line break');
+        ->and(implode('', $lines))->toContain('err:Stack [bad-env] failed at the env step: The environment value for [BAD] on stack [bad-env] contains a line break');
 
     Process::assertNothingRan();
     Event::assertDispatched(StackRedeployFailedEvent::class, fn (StackRedeployFailedEvent $event): bool => $event->step === 'env'
         && $event->result === null
         && $event->exception instanceof ComposeException
         && str_contains($event->reason(), 'contains a line break'));
+});
+
+it('fails the stack on a compose file it cannot read, before touching anything', function (): void {
+    Process::fake();
+    Event::fake();
+    $stack = fakeStack(['name' => 'garbled', 'compose' => "services:\n    app: [\n"]);
+    $lines = [];
+
+    $result = app(RedeployStack::class)->execute($stack, function (string $type, string $buffer) use (&$lines): void {
+        $lines[] = $buffer;
+    });
+
+    expect($result)->toBe(RedeployResult::Failed)
+        ->and(File::exists($stack->directory().'/.env'))->toBeFalse()
+        ->and(implode('', $lines))->toContain('Stack [garbled] failed at the compose step: The compose file [');
+
+    Process::assertNothingRan();
+    Event::assertDispatched(StackRedeployFailedEvent::class, fn (StackRedeployFailedEvent $event): bool => $event->step === 'compose'
+        && $event->exception instanceof ComposeException);
+});
+
+it('names a renamed env file on every compose call once it exists', function (): void {
+    Process::fake();
+    config()->set('compose.env_file', '.env.stack');
+    $stack = fakeStack(['name' => 'renamed']);
+    $envFile = $stack->directory().DIRECTORY_SEPARATOR.'.env.stack';
+
+    app(Docker::class)->status($stack);
+
+    Process::assertRan(fn (PendingProcess $process): bool => in_array('ps', $process->command, true) && ! in_array('--env-file', $process->command, true));
+
+    app(RedeployStack::class)->execute($stack);
+
+    Process::assertRan(fn (PendingProcess $process): bool => in_array('up', $process->command, true)
+        && array_slice($process->command, array_search('--env-file', $process->command, true), 2) === ['--env-file', $envFile]);
 });
 
 it('carries the process reason on a failed step', function (): void {

@@ -6,6 +6,7 @@ namespace Mozex\Compose;
 
 use Illuminate\Container\Container;
 use Illuminate\Contracts\Process\ProcessResult;
+use Mozex\Compose\Exceptions\ComposeException;
 use Mozex\Compose\Support\ComposeFile;
 use Mozex\Compose\Support\StackStatus;
 use ReflectionClass;
@@ -33,11 +34,19 @@ abstract class Stack
 
     /**
      * The Compose project name. Defaults to the compose file's `name:` and
-     * otherwise to the directory name, normalized to what Compose accepts.
+     * otherwise to the directory name, normalized to what Compose accepts. A
+     * compose file that cannot be read still leaves the stack with a name,
+     * so the registry can hold it and the doctor can report on it.
      */
     public function name(): string
     {
-        return static::normalizeName($this->compose()->name() ?? basename($this->directory()));
+        try {
+            $name = $this->compose()->name();
+        } catch (ComposeException) {
+            $name = null;
+        }
+
+        return static::normalizeName($name ?? basename($this->directory()));
     }
 
     /**
