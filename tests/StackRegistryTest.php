@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Illuminate\Support\Facades\File;
 use Mozex\Compose\DiscoveredStack;
 use Mozex\Compose\Exceptions\ComposeException;
 use Mozex\Compose\Stack;
@@ -68,6 +69,18 @@ it('refuses two stacks sharing a name and a stack with an invalid name', functio
     $registry->register(fakeStack(['name' => 'Not Valid']));
 
     expect(fn () => $registry->all())->toThrow(ComposeException::class, '[Not Valid] from');
+});
+
+it('remembers classes it found but could not load', function (): void {
+    $directory = temporaryDirectory();
+    File::put($directory.'/docker-compose.yml', "name: orphan\nservices:\n    app:\n        image: alpine\n");
+    File::put($directory.'/OrphanStack.php', "<?php\n\nnamespace Nowhere\\Mapped;\n\nclass OrphanStack extends \\Mozex\\Compose\\Stack {}\n");
+    config()->set('compose.discover', [$directory]);
+
+    $registry = app(StackRegistry::class);
+
+    expect($registry->all()['orphan'])->toBeInstanceOf(DiscoveredStack::class)
+        ->and($registry->unloadableClasses())->toBe([$directory => ['Nowhere\\Mapped\\OrphanStack']]);
 });
 
 it('refuses a directory holding more than one stack class', function (): void {

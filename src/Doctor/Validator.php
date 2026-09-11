@@ -156,6 +156,14 @@ class Validator
             $problems[] = Problem::info('Disabled on this host; redeploy skips it.', $name);
         }
 
+        foreach ($this->registry->unloadableClasses()[rtrim(str_replace('\\', '/', $stack->directory()), '/')] ?? [] as $class) {
+            $problems[] = Problem::warning(
+                "The class [{$class}] in the stack directory could not be autoloaded, so the stack runs class-less with an empty environment. "
+                .'Check the namespace against composer.json, and run `composer dump-autoload`.',
+                $name,
+            );
+        }
+
         if ($this->docker->isRemote($stack)) {
             foreach ($compose->bindMounts() as $mount) {
                 $problems[] = Problem::warning(

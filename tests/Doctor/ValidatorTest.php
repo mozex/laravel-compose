@@ -207,6 +207,19 @@ it('warns when the link directory cannot be written by this user', function (): 
     }
 });
 
+it('warns about a stack class that cannot be autoloaded', function (): void {
+    $directory = temporaryDirectory();
+    File::put($directory.'/docker-compose.yml', "name: orphan\nservices:\n    app:\n        image: alpine\n");
+    File::put($directory.'/OrphanStack.php', "<?php\n\nnamespace Nowhere\\Mapped;\n\nclass OrphanStack extends \\Mozex\\Compose\\Stack {}\n");
+    config()->set('compose.discover', [$directory]);
+
+    $report = app(Validator::class)->run(withDaemon: false);
+
+    expect($report->warnings())->toHaveCount(1)
+        ->and($report->warnings()[0]->stack)->toBe('orphan')
+        ->and($report->warnings()[0]->message)->toContain('[Nowhere\\Mapped\\OrphanStack] in the stack directory could not be autoloaded');
+});
+
 it('warns when a directory with content sits where the operator link should go', function (): void {
     $directory = temporaryDirectory();
     File::ensureDirectoryExists($directory.'/occupied');

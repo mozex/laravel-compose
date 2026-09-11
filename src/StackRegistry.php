@@ -27,6 +27,14 @@ class StackRegistry
      */
     protected array $registered = [];
 
+    /**
+     * Classes declared by files in a discovered stack directory that could
+     * not be loaded, keyed by directory. The doctor reports them.
+     *
+     * @var array<string, list<string>>
+     */
+    protected array $unloadable = [];
+
     public function __construct(
         protected Repository $config,
         protected Container $container,
@@ -77,6 +85,22 @@ class StackRegistry
     public function flush(): void
     {
         $this->stacks = null;
+        $this->unloadable = [];
+    }
+
+    /**
+     * Class names found in discovered stack directories that PHP could not
+     * autoload (a namespace that doesn't match the PSR-4 map, a stale
+     * authoritative classmap). Such a directory is treated as class-less,
+     * which is rarely what was meant.
+     *
+     * @return array<string, list<string>> Keyed by stack directory
+     */
+    public function unloadableClasses(): array
+    {
+        $this->all();
+
+        return $this->unloadable;
     }
 
     /**
@@ -85,6 +109,7 @@ class StackRegistry
     protected function resolve(): array
     {
         $stacks = [];
+        $this->unloadable = [];
         $configured = $this->config->get('compose.stacks', []);
 
         foreach ([...(is_array($configured) ? $configured : []), ...$this->registered] as $entry) {
@@ -234,7 +259,13 @@ class StackRegistry
         $classes = [];
 
         foreach (array_keys(ClassMapGenerator::createMap($directory)) as $class) {
-            if (! class_exists($class) || ! is_subclass_of($class, Stack::class)) {
+            if (! class_exists($class)) {
+                $this->unloadable[$this->comparable($directory)][] = $class;
+
+                continue;
+            }
+
+            if (! is_subclass_of($class, Stack::class)) {
                 continue;
             }
 
