@@ -107,14 +107,22 @@ class MeilisearchStack extends Stack
 }
 ```
 
-The compose file reads those values as `${MEILISEARCH_KEY}` and `${MEILISEARCH_PORT:-7700}`. Check the result, then bring it up:
+The compose file reads those values as `${MEILISEARCH_KEY}` and `${MEILISEARCH_PORT:-7700}`. Wire the switch to an env variable in `config/services.php`:
+
+```php
+'meilisearch' => [
+    'manage_container' => (bool) env('MANAGE_MEILISEARCH_CONTAINER', false),
+],
+```
+
+Check the result, then bring it up:
 
 ```bash
 php artisan compose:doctor
 php artisan compose:redeploy
 ```
 
-Add `php artisan compose:redeploy` to your deploy script, before any step that talks to the container, and set `MANAGE_MEILISEARCH_CONTAINER=true` (or whatever your `enabled()` reads) on the hosts that run Docker. Every other host skips the stack.
+Add `php artisan compose:redeploy` to your deploy script, before any step that talks to the container, and set `MANAGE_MEILISEARCH_CONTAINER=true` on the hosts that run Docker. Every other host skips the stack.
 
 The [documentation site](https://mozex.dev/docs/laravel-compose/v1) covers stack discovery, the redeploy recipe step by step, hosting platforms, remote daemons, and testing.
 

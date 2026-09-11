@@ -43,7 +43,15 @@ class MeilisearchStack extends Stack
 }
 ```
 
-With `manage_container` false on a laptop that runs Meilisearch natively, the deploy pipeline stays the same and the stack is skipped.
+`manage_container` is an ordinary config key, so give it an env variable in `config/services.php`:
+
+```php
+'meilisearch' => [
+    'manage_container' => (bool) env('MANAGE_MEILISEARCH_CONTAINER', false),
+],
+```
+
+With it false on a laptop that runs Meilisearch natively, the deploy pipeline stays the same and the stack is skipped.
 
 ## Every method and its default
 

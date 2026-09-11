@@ -16,7 +16,7 @@ services:
         container_name: meilisearch
 ```
 
-`name:` becomes the stack name. `container_name:` is what the redeploy sweeps with `docker rm -f` before `up`. Without a fixed name, Compose generates one per project, and a stale container from an older checkout of the same app can sit there under a different project name, holding the port. With a fixed name, the sweep removes it whatever project created it.
+`name:` becomes the stack name; without it the directory name is used, which is `docker` for every module in a `Modules/*/Docker` layout, so set it there. `container_name:` is what the redeploy sweeps with `docker rm -f` before `up`. Without a fixed name, Compose generates one per project, and a stale container from an older checkout of the same app can sit there under a different project name, holding the port. With a fixed name, the sweep removes it whatever project created it.
 
 Both names are global on the Docker host. If two apps on one server each own a `meilisearch` stack with a `meilisearch` container, one app's redeploy sweeps the other's container, and Compose treats the two projects as one. Prefix both with the app when a host is shared:
 

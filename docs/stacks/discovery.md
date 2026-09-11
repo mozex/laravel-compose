@@ -31,6 +31,8 @@ When a `Stack` subclass is declared by a PHP file directly in the stack director
 
 A directory with a compose file and no class becomes a `DiscoveredStack`: named after the compose file's `name:` or the directory, enabled, with an empty environment. That's enough for a service whose every knob has a `${VAR:-default}` in the compose file, such as a Mailpit for local development.
 
+In the module layout, give the compose file a `name:`. The fallback is the directory name, and every module's stack directory is called `Docker`, so two class-less module stacks without one would both be named `docker` and the registry would refuse the second.
+
 A class-less stack has nothing to write, so a redeploy leaves an existing env file in that directory alone. Writing one by hand is the way to give such a stack a value, and it survives deploys as long as the file is in the release (or linked into it). The doctor reads that file too, so a `${VAR}` it defines counts as provided.
 
 ## Explicit registration
