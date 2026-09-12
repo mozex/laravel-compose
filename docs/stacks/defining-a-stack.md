@@ -9,7 +9,7 @@ A stack class extends `Mozex\Compose\Stack` and lives in the same directory as i
 php artisan compose:make meilisearch
 ```
 
-It writes `app/Docker/Meilisearch/MeilisearchStack.php`, a starter `docker-compose.yml`, and a `.gitignore` containing `.env`. Pass `--path=` to put it somewhere else; the namespace is derived from your `composer.json` autoload map, so `Modules/Search/Docker` works as well as `app/Docker`.
+It writes `app/Docker/Meilisearch/MeilisearchStack.php`, a starter `docker-compose.yml`, and a `.gitignore` containing `.env`. The compose file's `name:` and `container_name:` carry your app's name (`shop-meilisearch` for an app called Shop), so two apps on one server never sweep each other's containers; that prefixed name is what `compose:logs` and the other commands take. Pass `--path=` to put it somewhere else; the namespace is derived from your `composer.json` autoload map, so `Modules/Search/Docker` works as well as `app/Docker`.
 
 ## A real example
 

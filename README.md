@@ -82,7 +82,7 @@ Scaffold a stack:
 php artisan compose:make meilisearch
 ```
 
-That creates `app/Docker/Meilisearch/` with a `docker-compose.yml`, a `MeilisearchStack.php`, and a `.gitignore` for the generated env file. Edit the compose file for the image you want, then fill in the stack class:
+That creates `app/Docker/Meilisearch/` with a `docker-compose.yml`, a `MeilisearchStack.php`, and a `.gitignore` for the generated env file. The compose file names the project and container after your app (`shop-meilisearch` for an app called Shop), and that's the name `compose:logs` and the other commands take. Edit the compose file for the image you want, then fill in the stack class:
 
 ```php
 namespace App\Docker\Meilisearch;
