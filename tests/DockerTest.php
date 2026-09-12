@@ -7,6 +7,7 @@ use Illuminate\Process\PendingProcess;
 use Illuminate\Process\ProcessResult;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Process;
+use Mozex\Compose\DiscoveredStack;
 use Mozex\Compose\Docker;
 use Mozex\Compose\Exceptions\ComposeException;
 use Symfony\Component\Process\Exception\ProcessTimedOutException as SymfonyTimedOutException;
@@ -150,6 +151,23 @@ it('unsets the keys the stack writes so the env file beats the shell, for compos
     app(Docker::class)->compose($handWritten, ['ps']);
 
     Process::assertRan(fn (PendingProcess $process): bool => end($process->command) === 'ps' && $process->environment === ['HAND' => false]);
+});
+
+it('still runs compose for a stack whose environment() throws', function (): void {
+    Process::fake();
+    $directory = temporaryDirectory();
+    File::put($directory.'/docker-compose.yml', "name: touchy\nservices:\n    app:\n        image: alpine\n");
+    $touchy = new class($directory) extends DiscoveredStack
+    {
+        public function environment(): array
+        {
+            throw new RuntimeException('vault unavailable');
+        }
+    };
+
+    expect(app(Docker::class)->status($touchy)->isEmpty())->toBeTrue();
+
+    Process::assertRan(fn (PendingProcess $process): bool => in_array('ps', $process->command, true) && $process->environment === []);
 });
 
 it('falls back to a default when a configured timeout is unusable', function (): void {

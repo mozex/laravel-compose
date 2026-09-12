@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Process;
 use Mozex\Compose\Exceptions\ComposeException;
 use Mozex\Compose\Support\EnvFile;
 use Mozex\Compose\Support\StackStatus;
+use Throwable;
 
 /**
  * The one place that runs the docker binary. Every command goes through the
@@ -155,11 +156,19 @@ class Docker
      * writes, for the compose process only, makes the file the value compose
      * sees.
      *
+     * A stack whose environment() throws gets no unsets rather than an
+     * exception out of `status` or `down`: the redeploy and the doctor report
+     * that failure themselves, and a bad stack must not hide the others.
+     *
      * @return array<string, false>
      */
     protected function shadowedKeys(Stack $stack): array
     {
-        return array_fill_keys(array_keys($this->envFile->valuesFor($stack)), false);
+        try {
+            return array_fill_keys(array_keys($this->envFile->valuesFor($stack)), false);
+        } catch (Throwable) {
+            return [];
+        }
     }
 
     /**
