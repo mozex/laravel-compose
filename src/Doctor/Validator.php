@@ -284,14 +284,28 @@ class Validator
         $parent = dirname($path);
 
         if (file_exists($path) || is_link($path)) {
-            if ($this->isRealDirectory($path) && count((array) scandir($path)) > 2) {
-                $problems[] = Problem::warning(
-                    "The operator link path [{$path}] is a directory with content, not a link. The redeploy leaves it alone and "
-                    .'skips the link; move the content away so the link can take its place.',
-                    $stack->name(),
-                );
+            if ($this->isRealDirectory($path)) {
+                $entries = @scandir($path);
 
-                return;
+                if ($entries === false) {
+                    $problems[] = Problem::warning(
+                        "The operator link path [{$path}] is a directory this user cannot read, so the redeploy cannot tell whether it is empty "
+                        .'and will leave it alone. Make it readable or move it away so the link can take its place.',
+                        $stack->name(),
+                    );
+
+                    return;
+                }
+
+                if (count($entries) > 2) {
+                    $problems[] = Problem::warning(
+                        "The operator link path [{$path}] is a directory with content, not a link. The redeploy leaves it alone and "
+                        .'skips the link; move the content away so the link can take its place.',
+                        $stack->name(),
+                    );
+
+                    return;
+                }
             }
 
             if (! is_writable($parent)) {

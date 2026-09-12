@@ -322,6 +322,27 @@ it('warns when the link directory cannot be written by this user', function (): 
     }
 });
 
+it('warns about a link directory it cannot read instead of crashing', function (): void {
+    if (PHP_OS_FAMILY === 'Windows' || (function_exists('posix_geteuid') && posix_geteuid() === 0)) {
+        $this->markTestSkipped('Needs a filesystem that enforces directory permissions for a non-root user.');
+    }
+
+    $directory = temporaryDirectory();
+    File::ensureDirectoryExists($directory.'/sealed');
+    chmod($directory.'/sealed', 0000);
+    config()->set('compose.link_directory', $directory);
+    Compose::register(fakeStack(['name' => 'sealed']));
+
+    try {
+        $report = app(Validator::class)->run(withDaemon: false);
+
+        expect($report->warnings())->toHaveCount(1)
+            ->and($report->warnings()[0]->message)->toContain("[{$directory}/sealed] is a directory this user cannot read");
+    } finally {
+        chmod($directory.'/sealed', 0700);
+    }
+});
+
 it('warns about a stack class that cannot be autoloaded', function (): void {
     $directory = temporaryDirectory();
     File::put($directory.'/docker-compose.yml', "name: orphan\nservices:\n    app:\n        image: alpine\n");
