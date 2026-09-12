@@ -14,7 +14,7 @@ services:
         environment:
             EXAMPLE_SETTING: ${{{ upper }}_EXAMPLE:-value}
         healthcheck:
-            test: ["CMD", "wget", "--no-verbose", "--spider", "http://localhost:8080/health"]
+            test: ["CMD", "wget", "--no-verbose", "--spider", "http://127.0.0.1:8080/health"]
             interval: 30s
             timeout: 5s
             retries: 3

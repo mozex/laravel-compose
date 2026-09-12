@@ -83,7 +83,7 @@ services:
         environment:
             MEILI_MASTER_KEY: ${MEILISEARCH_KEY}
         healthcheck:
-            test: ["CMD", "wget", "--no-verbose", "--spider", "http://localhost:7700/health"]
+            test: ["CMD", "wget", "--no-verbose", "--spider", "http://127.0.0.1:7700/health"]
             interval: 30s
         volumes:
             - 'meilisearch-data:/meili_data'           # named volume, not a bind mount
@@ -97,7 +97,7 @@ volumes:
 
 - Give every service a `container_name`. Publish on `127.0.0.1` (or a private address), never `0.0.0.0` or a bare `7700:7700`.
 - Project and container names are global on the host. When several apps share a server, prefix both with the app (`shop-meilisearch`); `compose:make` writes `{app}-{stack}` names by default. `container_name: ${COMPOSE_PROJECT_NAME}-meilisearch` works too; the sweep resolves `${VAR}` in names before `docker rm -f`.
-- Add a healthcheck; `wait()`, `compose:status`, and the health check read it.
+- Add a healthcheck; `wait()`, `compose:status`, and the health check read it. Probe `127.0.0.1`, never `localhost` (it can resolve to `::1` inside the container while the service listens on IPv4).
 - Prefer named volumes. A bind mount of a stack-local file pins the container to the release directory and cannot work on a remote daemon.
 - Production-only sidecars go behind `profiles: [tls]` and `profiles()` on the class.
 

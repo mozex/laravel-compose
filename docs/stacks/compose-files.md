@@ -47,14 +47,14 @@ When an app on another machine needs the port, bind the private interface (a VPN
 
 ```yaml
         healthcheck:
-            test: ["CMD", "wget", "--no-verbose", "--spider", "http://localhost:7700/health"]
+            test: ["CMD", "wget", "--no-verbose", "--spider", "http://127.0.0.1:7700/health"]
             interval: 30s
             timeout: 5s
             retries: 3
             start_period: 10s
 ```
 
-Three things read it: `wait()` on the stack (`up --wait` returns when every service is healthy), `compose:status`, and the laravel-health check. Use the probe the image ships; official images often carry busybox `wget` and no `curl`.
+Three things read it: `wait()` on the stack (`up --wait` returns when every service is healthy), `compose:status`, and the laravel-health check. Use the probe the image ships; official images often carry busybox `wget` and no `curl`. Probe `127.0.0.1`, not `localhost`: inside a container `localhost` can resolve to `::1` first, most services listen on IPv4 only, and the check then fails with "connection refused" while the service is fine.
 
 ## Cap the logs
 
