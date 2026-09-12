@@ -11,6 +11,12 @@ Your app already has one source of truth for its settings, and secrets shared be
 
 The other side of that coin: never edit the generated file by hand on the server. The next redeploy overwrites it, silently. The one exception is a stack whose `environment()` is empty (a class-less one, for instance): with nothing to write, an existing file is left as it is.
 
+## The shell doesn't get a say
+
+Compose reads the shell before the env file: a variable set in the environment of the `docker compose` process beats the same variable in the file. Laravel exports the app's own `.env` into the environment of every process it starts, so an app key that shares a name with a stack key (`MEILISEARCH_PORT` in the app's `.env` and in `environment()`, say) would win over the file the redeploy just wrote, and the container would come up with the app's value. Silently.
+
+So every compose command runs with the keys the stack writes unset, for that process only. The file is the value compose sees, and `environment()` is the one place a container's setting comes from. A variable the stack doesn't write still comes from the shell, which is what the `${VAR:-default}` knobs and `compose:doctor`'s "set in this shell" warning are about.
+
 ## What can go in it
 
 Keys must match `[A-Za-z_][A-Za-z0-9_]*`. Values can be strings, integers, floats, booleans (`true`/`false`), null (written as empty), backed enums (their value), and `Stringable` objects. Anything else, an array for instance, throws a `ComposeException` naming the key and the stack.

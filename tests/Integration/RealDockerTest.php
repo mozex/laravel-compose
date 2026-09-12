@@ -57,6 +57,8 @@ beforeEach(function (): void {
 });
 
 afterEach(function (): void {
+    putenv('GREETING');
+
     // The stack directory is already gone by now: temporary directories are
     // removed by the global hook first. `down` finds the project by name.
     if (isset($this->name)) {
@@ -69,8 +71,13 @@ it('redeploys, reports status and logs, and tears down a real stack', function (
     Compose::register($this->stack);
     $stack = $this->stack;
 
-    // A stale container under a foreign project context must not wedge `up`.
+    // A stale container under a foreign project context must not wedge `up`;
+    // its name only matches once ${COMPOSE_PROJECT_NAME} is resolved.
     Process::timeout(120)->run(['docker', 'run', '--detach', '--name', $this->name.'-app', 'alpine:3', 'sleep', '60']);
+
+    // The shell has the same key as the env file, as an app's own .env would
+    // through Laravel's putenv. The file has to win.
+    putenv('GREETING=shadowed by the shell');
 
     $result = app(RedeployStack::class)->execute($stack, function (string $type, string $buffer): void {
         // Streamed compose output; nothing to assert on its exact wording.
@@ -87,6 +94,7 @@ it('redeploys, reports status and logs, and tears down a real stack', function (
         ->and($status->containers[0]->name)->toBe($this->name.'-app')
         ->and($status->containers[0]->service)->toBe('app')
         ->and($stack->logs())->toContain('hello from laravel-compose')
+        ->and($stack->logs())->not->toContain('shadowed by the shell')
         ->and(trim($stack->exec('app', ['cat', '/etc/alpine-release'])->output()))->toMatch('/^3\./');
 
     artisan('compose:status', ['stack' => $this->name])->assertSuccessful();

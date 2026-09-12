@@ -58,6 +58,46 @@ class EnvFile
     }
 
     /**
+     * The values compose reads back for this stack: environment() as the env
+     * file renders it, or the hand-written file when there is nothing to write.
+     *
+     * @return array<string, string>
+     */
+    public function valuesFor(Stack $stack): array
+    {
+        if ($this->isHandWritten($stack)) {
+            return static::parse((string) file_get_contents($this->pathFor($stack)));
+        }
+
+        return static::values($stack->environment());
+    }
+
+    /**
+     * Every value as the string the env file would carry, for resolving
+     * `${VAR}` the way compose will. Nothing throws here: render() is where
+     * an unwritable value is refused.
+     *
+     * @param  array<string, mixed>  $environment
+     * @return array<string, string>
+     */
+    public static function values(array $environment): array
+    {
+        $strings = [];
+
+        foreach ($environment as $key => $value) {
+            $strings[(string) $key] = match (true) {
+                $value === null => '',
+                is_bool($value) => $value ? 'true' : 'false',
+                $value instanceof BackedEnum => (string) $value->value,
+                is_scalar($value), $value instanceof Stringable => (string) $value,
+                default => '',
+            };
+        }
+
+        return $strings;
+    }
+
+    /**
      * The variable names an env file defines, in file order.
      *
      * @return list<string>

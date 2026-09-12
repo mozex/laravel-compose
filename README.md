@@ -46,7 +46,7 @@ Business sponsors get logo placement in package READMEs. [**See sponsorship tier
 
 **One command per deploy.** `php artisan compose:redeploy` writes each stack's env file from your config, refreshes the operator link, pulls, force-removes the old containers, and runs `compose up`. The order comes from production incidents, not taste. It's idempotent, so it's safe to run any time.
 
-**Env files you never hand-edit.** Values come from `environment()` on the stack class, which reads your app's config. Quoting follows Compose's rules, the file lands with `0600` permissions, and the doctor tells you when the compose file consumes a variable nobody writes.
+**Env files you never hand-edit.** Values come from `environment()` on the stack class, which reads your app's config. Quoting follows Compose's rules, the file lands with `0600` permissions, the app's own `.env` can't shadow it, and the doctor tells you when the compose file consumes a variable nobody writes.
 
 **Works without a panel.** `compose:status`, `compose:logs`, `compose:down`, and a `StacksCheck` for spatie/laravel-health cover the day-two work. Stack objects expose `status()`, `logs()`, `exec()`, and `down()` for your own commands.
 

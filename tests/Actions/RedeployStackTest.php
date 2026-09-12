@@ -271,7 +271,7 @@ it('skips the operator link when the daemon lives on another machine', function 
     app(RedeployStack::class)->execute($stack);
 
     expect(File::exists(config('compose.link_directory').'/remote'))->toBeFalse();
-    Process::assertRan(fn (PendingProcess $process): bool => $process->environment === ['DOCKER_HOST' => 'ssh://deploy@box'] && in_array('up', $process->command, true));
+    Process::assertRan(fn (PendingProcess $process): bool => $process->environment === ['FAKE_KEY' => false, 'DOCKER_HOST' => 'ssh://deploy@box'] && in_array('up', $process->command, true));
 });
 
 it('writes the env file under the configured name', function (): void {

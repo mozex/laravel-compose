@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Illuminate\Process\Exceptions\ProcessTimedOutException;
 use Illuminate\Process\PendingProcess;
 use Illuminate\Process\ProcessResult;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Process;
 use Mozex\Compose\Docker;
 use Mozex\Compose\Exceptions\ComposeException;
@@ -127,10 +128,28 @@ it('runs processes with the stack directory, timeout, and daemon environment', f
     Process::assertRan(fn (PendingProcess $process): bool => end($process->command) === 'ps'
         && $process->path === $directory
         && $process->timeout === 45
-        && $process->environment === ['DOCKER_HOST' => 'ssh://deploy@box']);
+        && $process->environment === ['FAKE_KEY' => false, 'DOCKER_HOST' => 'ssh://deploy@box']);
     Process::assertRan(fn (PendingProcess $process): bool => $process->command === ['docker', 'rm', '-f', 'x']
         && $process->path === null
         && $process->timeout === 5);
+});
+
+it('unsets the keys the stack writes so the env file beats the shell, for compose calls only', function (): void {
+    Process::fake();
+    $stack = fakeStack(['environment' => ['MEILI_PORT' => 7700, 'MEILI_KEY' => 'k']]);
+
+    app(Docker::class)->compose($stack, ['ps']);
+    app(Docker::class)->run(['rm', '-f', 'x'], $stack);
+
+    Process::assertRan(fn (PendingProcess $process): bool => end($process->command) === 'ps' && $process->environment === ['MEILI_PORT' => false, 'MEILI_KEY' => false]);
+    Process::assertRan(fn (PendingProcess $process): bool => end($process->command) === 'x' && $process->environment === []);
+
+    $handWritten = fakeStack(['environment' => []]);
+    File::put($handWritten->directory().'/.env', "HAND=1\n");
+
+    app(Docker::class)->compose($handWritten, ['ps']);
+
+    Process::assertRan(fn (PendingProcess $process): bool => end($process->command) === 'ps' && $process->environment === ['HAND' => false]);
 });
 
 it('falls back to a default when a configured timeout is unusable', function (): void {

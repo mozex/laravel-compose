@@ -120,10 +120,11 @@ class Docker
      *
      * @param  list<string>  $arguments
      * @param  int  $timeout  Seconds, or 0 to let the process run until it exits
+     * @param  array<string, string|false>  $environment  Extra variables for the process; false unsets one
      */
-    public function run(array $arguments, ?Stack $stack = null, ?string $path = null, int $timeout = 60, ?Closure $output = null): ProcessResult
+    public function run(array $arguments, ?Stack $stack = null, ?string $path = null, int $timeout = 60, ?Closure $output = null, array $environment = []): ProcessResult
     {
-        $process = ($timeout > 0 ? Process::timeout($timeout) : Process::forever())->env($this->environment($stack));
+        $process = ($timeout > 0 ? Process::timeout($timeout) : Process::forever())->env([...$environment, ...$this->environment($stack)]);
 
         if ($path !== null) {
             $process = $process->path($path);
@@ -143,7 +144,22 @@ class Docker
      */
     public function compose(Stack $stack, array $arguments, int $timeout = 60, ?Closure $output = null): ProcessResult
     {
-        return $this->run($this->composeArguments($stack, $arguments), $stack, $stack->directory(), $timeout, $output);
+        return $this->run($this->composeArguments($stack, $arguments), $stack, $stack->directory(), $timeout, $output, $this->shadowedKeys($stack));
+    }
+
+    /**
+     * Compose reads the shell before the env file, and Laravel puts the app's
+     * own .env into the shell of every child process. An app key that shares
+     * a name with a stack key (MEILISEARCH_PORT in both, say) would silently
+     * beat the file the redeploy just wrote. Unsetting every key the stack
+     * writes, for the compose process only, makes the file the value compose
+     * sees.
+     *
+     * @return array<string, false>
+     */
+    protected function shadowedKeys(Stack $stack): array
+    {
+        return array_fill_keys(array_keys($this->envFile->valuesFor($stack)), false);
     }
 
     /**
