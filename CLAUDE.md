@@ -80,5 +80,6 @@ composer test:unit       # pest only
 
 - CI: `.github/workflows/checks.yml` (lint, types, type coverage, PHP 8.2-8.5 x Laravel 11-13 x lowest/stable). GitHub runners ship docker compose, so the integration test runs there too.
 - `CHANGELOG.md` is generated from GitHub releases by the changelog workflow. Never edit it by hand.
-- Docs live in `docs/` (multi-page, rendered on mozex.dev); the README is the GitHub gateway. Boost skill: `resources/boost/skills/laravel-compose/SKILL.md`.
+- Docs live in `docs/` (multi-page, rendered on mozex.dev); the README is the GitHub gateway. Boost skill: `resources/boost/skills/laravel-compose/SKILL.md`. `docs/recipes/` holds copy-and-paste stacks (Meilisearch, Telegram Bot API); every compose file there was brought up with `docker compose up --wait` before publishing, and must be again when its image tag changes.
+- Healthchecks probe `127.0.0.1`, never `localhost`: on Docker Desktop (and any daemon with IPv6 on the bridge) `localhost` resolves to `::1` first inside the container, the service listens on IPv4, and `wget --spider` fails with "connection refused" while the service is fine. The stub, the docs, the skill, and the recipes all follow this.
 - Commit messages: short, one line, no attribution lines.
