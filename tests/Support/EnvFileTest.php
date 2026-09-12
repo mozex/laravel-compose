@@ -80,9 +80,20 @@ it('reads a hand-written file with the quoting rules it writes', function (): vo
         ->and(EnvFile::keys($contents))->toBe(['SECRET', 'PORT', 'SPACED', 'DOUBLE', 'TRAILING', 'HASHED', 'EMPTY'])
         ->and(EnvFile::parse(''))->toBe([]);
 
-    $values = ['A' => 'plain', 'B' => 'hello world', 'C' => "it's \"quoted\" \\ \$5", 'D' => ''];
+    $values = ['A' => 'plain', 'B' => 'hello world', 'C' => "it's \"quoted\" \\ \$5", 'D' => '', 'E' => 'ends with \\'];
 
     expect(EnvFile::parse(EnvFile::render($values)))->toBe($values);
+});
+
+it('reads the values compose will see for a stack', function (): void {
+    $envFile = app(EnvFile::class);
+    $classed = fakeStack(['environment' => ['PORT' => 7700, 'ON' => true, 'NOTHING' => null, 'LIST' => ['nope']]]);
+    $handWritten = fakeStack(['environment' => []]);
+    File::put($handWritten->directory().'/.env', "HAND='by hand'\n");
+
+    expect($envFile->valuesFor($classed))->toBe(['PORT' => '7700', 'ON' => 'true', 'NOTHING' => '', 'LIST' => ''])
+        ->and($envFile->valuesFor($handWritten))->toBe(['HAND' => 'by hand'])
+        ->and($envFile->valuesFor(fakeStack(['environment' => []])))->toBe([]);
 });
 
 it('resolves the env path from config and knows a hand-written file', function (): void {
