@@ -72,7 +72,7 @@ composer require mozex/laravel-compose
 Publish the config file if you want to change the defaults:
 
 ```bash
-php artisan vendor:publish --tag=laravel-compose-config
+php artisan vendor:publish --tag=compose-config
 ```
 
 The server needs Docker with the Compose plugin, and the user that runs your deploy has to be in the `docker` group. `compose:doctor` tells you when either is missing.

@@ -12,7 +12,7 @@ composer require mozex/laravel-compose
 The service provider registers itself through package discovery. Publish the config file when you want to change a default:
 
 ```bash
-php artisan vendor:publish --tag=laravel-compose-config
+php artisan vendor:publish --tag=compose-config
 ```
 
 That writes `config/compose.php`. The [Configuration](./configuration.md) page explains every key.
