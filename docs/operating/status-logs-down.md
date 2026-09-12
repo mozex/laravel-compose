@@ -49,7 +49,7 @@ The next `compose:redeploy` brings everything back.
 
 ## From your own code
 
-The commands are thin. Everything they do is available on the stack object, which is how you build a scheduled maintenance task or a custom dashboard:
+The commands are thin. Status, logs, exec, and down are methods on the stack object too, which is how you build a scheduled maintenance task or a custom dashboard:
 
 ```php
 $stack = Compose::stack('rdp-gateway');
