@@ -289,8 +289,8 @@ class Validator
 
                 if ($entries === false) {
                     $problems[] = Problem::warning(
-                        "The operator link path [{$path}] is a directory this user cannot read, so the redeploy cannot tell whether it is empty "
-                        .'and will leave it alone. Make it readable or move it away so the link can take its place.',
+                        "The operator link path [{$path}] is a directory this user cannot read, so the doctor cannot tell whether it is empty "
+                        .'and whether the redeploy can replace it. Make it readable or move it away so the link can take its place.',
                         $stack->name(),
                     );
 
