@@ -77,7 +77,7 @@ volumes:
         driver: local
 ```
 
-Named volumes survive redeploys and don't care which release created them. A bind mount of a file in the stack directory (`./Caddyfile:/etc/caddy/Caddyfile:ro`) works on the same host, but it pins the running container to the release directory that started it, and it can't work at all on a [remote daemon](../deploying/remote-daemons). Copy such files into an image or keep them small and accept the coupling.
+Named volumes survive redeploys and don't care which release created them. A bind mount of a file in the stack directory (`./Caddyfile:/etc/caddy/Caddyfile:ro`) works on the same host, but it pins the running container to the release directory that started it, and it can't work at all on a [remote daemon](../deploying/remote-daemons.md). Copy such files into an image or keep them small and accept the coupling.
 
 ## Pinned or floating tags
 

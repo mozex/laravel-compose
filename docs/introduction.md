@@ -31,7 +31,7 @@ A directory with a compose file and no class works too. It's registered with an 
 5. `docker rm -f` on the fixed container names, result ignored. A container created under another project context (a renamed directory, an older layout) is invisible to this project's `up` and wedges it with a name conflict.
 6. `docker compose up --detach --remove-orphans`, with `--wait` when the stack asks for it.
 
-The [Redeploy](deploying/redeploy) page walks through each step and what happens when one fails.
+The [Redeploy](./deploying/redeploy.md) page walks through each step and what happens when one fails.
 
 ## What else is in the box
 
@@ -44,4 +44,4 @@ The [Redeploy](deploying/redeploy) page walks through each step and what happens
 
 ## Where to start
 
-[Installation](installation) takes a minute. [Defining a Stack](stacks/defining-a-stack) covers the class, and [Compose Files](stacks/compose-files) covers what the compose file should look like for a container an app depends on. When it's time to ship, read [Hosting Platforms](deploying/hosting-platforms) for the line that goes in your deploy script.
+[Installation](./installation.md) takes a minute. [Defining a Stack](./stacks/defining-a-stack.md) covers the class, and [Compose Files](./stacks/compose-files.md) covers what the compose file should look like for a container an app depends on. When it's time to ship, read [Hosting Platforms](./deploying/hosting-platforms.md) for the line that goes in your deploy script.

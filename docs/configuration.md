@@ -44,7 +44,7 @@ The master switch. `COMPOSE_ENABLED=false` makes every redeploy skip every stack
 
 ## `stacks`
 
-Stack classes registered explicitly. See [Discovery](stacks/discovery).
+Stack classes registered explicitly. See [Discovery](./stacks/discovery.md).
 
 ## `discover`
 
@@ -62,7 +62,7 @@ The docker executable. A full path works when it isn't on the deploy user's `PAT
 
 ## `docker.host` and `docker.context`
 
-A `DOCKER_HOST` value or a docker context name for a [remote daemon](deploying/remote-daemons). Empty means the local daemon and the current context. Stacks override both.
+A `DOCKER_HOST` value or a docker context name for a [remote daemon](./deploying/remote-daemons.md). Empty means the local daemon and the current context. Stacks override both.
 
 ## `env_file`
 

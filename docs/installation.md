@@ -15,7 +15,7 @@ The service provider registers itself through package discovery. Publish the con
 php artisan vendor:publish --tag=laravel-compose-config
 ```
 
-That writes `config/compose.php`. The [Configuration](configuration) page explains every key.
+That writes `config/compose.php`. The [Configuration](./configuration.md) page explains every key.
 
 ## What the server needs
 
@@ -34,4 +34,4 @@ Nothing here requires Docker to be present. A stack whose `enabled()` returns fa
 
 ## Next step
 
-Scaffold your first stack with `php artisan compose:make {name}` and read [Defining a Stack](stacks/defining-a-stack).
+Scaffold your first stack with `php artisan compose:make {name}` and read [Defining a Stack](./stacks/defining-a-stack.md).

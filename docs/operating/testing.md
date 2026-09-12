@@ -52,4 +52,4 @@ it('derives the port from the scout host', function (): void {
 });
 ```
 
-And keep the stacks consistent with their compose files with the [doctor](../deploying/doctor) report in an architecture test.
+And keep the stacks consistent with their compose files with the [doctor](../deploying/doctor.md) report in an architecture test.
