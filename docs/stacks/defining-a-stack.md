@@ -63,7 +63,8 @@ You only override what differs from the default.
 | `name()` | compose `name:`, else the directory name | The Compose project name. Lowercase letters, digits, `-` and `_`, starting with a letter or digit. |
 | `directory()` | where the class file lives | The stack directory. |
 | `composePath()` | first of `compose.yaml`, `compose.yml`, `docker-compose.yaml`, `docker-compose.yml` in the directory | The compose file. |
-| `containerNames()` | every `container_name:` in the compose file | Names force-removed before `up`. |
+| `containerNames()` | every `container_name:` in the compose file | Names force-removed before `up`, with `${VAR}` resolved through `interpolationValues()`. |
+| `interpolationValues()` | shell, then the env file, then `COMPOSE_PROJECT_NAME` | What `${VAR}` in the compose file resolves against, the way compose resolves it. |
 | `enabled()` | `true` | Whether this host manages the stack. Read a config value here. |
 | `profiles()` | `[]` | Compose profiles to activate, such as a production-only TLS sidecar. |
 | `build()` | `false` | Run `compose build --pull` first and pass `--build` to `up`. |
