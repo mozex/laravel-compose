@@ -5,6 +5,7 @@ declare(strict_types=1);
 use Illuminate\Process\PendingProcess;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Process;
+use Mozex\Compose\DiscoveredStack;
 use Mozex\Compose\Facades\Compose;
 
 use function Pest\Laravel\artisan;
@@ -74,6 +75,27 @@ it('lists a stack whose compose file cannot be read in the dry run and carries o
 
     artisan('compose:redeploy', ['--dry-run' => true])
         ->expectsOutputToContain('would fail: The compose file [')
+        ->expectsOutputToContain('$ docker rm -f fine-app')
+        ->assertSuccessful();
+
+    Process::assertNothingRan();
+});
+
+it('lists a stack whose environment() throws in the dry run and carries on', function (): void {
+    Process::fake();
+    $directory = temporaryDirectory();
+    File::put($directory.'/docker-compose.yml', "name: touchy\nservices:\n    app:\n        image: alpine\n");
+    $touchy = new class($directory) extends DiscoveredStack
+    {
+        public function environment(): array
+        {
+            throw new RuntimeException('services.touchy.key is not set');
+        }
+    };
+    Compose::register($touchy)->register(fakeStack(['name' => 'fine']));
+
+    artisan('compose:redeploy', ['--dry-run' => true])
+        ->expectsOutputToContain('would fail: services.touchy.key is not set')
         ->expectsOutputToContain('$ docker rm -f fine-app')
         ->assertSuccessful();
 

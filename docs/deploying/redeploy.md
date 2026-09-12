@@ -63,7 +63,7 @@ meili ............................ /srv/app/current/app/Docker/Meilisearch
   $ docker compose --project-name meili --project-directory ... up --detach --remove-orphans --wait --wait-timeout 60
 ```
 
-Env keys are printed, values never are. A stack whose compose file can't be read shows `would fail:` and the reason, and the rest of the plan still prints.
+Env keys are printed, values never are. A stack whose compose file can't be read, or whose `environment()` throws, shows `would fail:` and the reason, and the rest of the plan still prints.
 
 ## From code
 

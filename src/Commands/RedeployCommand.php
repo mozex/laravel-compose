@@ -11,6 +11,7 @@ use Mozex\Compose\Docker;
 use Mozex\Compose\Enums\RedeployResult;
 use Mozex\Compose\Exceptions\ComposeException;
 use Mozex\Compose\Stack;
+use Throwable;
 
 class RedeployCommand extends Command
 {
@@ -80,8 +81,9 @@ class RedeployCommand extends Command
                 foreach ($this->plannedCommands($stack, $action, $docker) as $command) {
                     $this->line('  $ '.$command);
                 }
-            } catch (ComposeException $exception) {
-                // The real run fails this stack and moves on; the plan says so.
+            } catch (Throwable $exception) {
+                // The real run fails this stack and moves on, whether the
+                // compose file is unreadable or environment() throws; the plan says so.
                 $this->line('  would fail: '.$exception->getMessage());
             }
         }
