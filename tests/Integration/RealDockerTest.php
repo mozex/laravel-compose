@@ -58,6 +58,7 @@ beforeEach(function (): void {
 
 afterEach(function (): void {
     putenv('GREETING');
+    unset($_SERVER['GREETING'], $_ENV['GREETING']);
 
     // The stack directory is already gone by now: temporary directories are
     // removed by the global hook first. `down` finds the project by name.
@@ -75,9 +76,12 @@ it('redeploys, reports status and logs, and tears down a real stack', function (
     // its name only matches once ${COMPOSE_PROJECT_NAME} is resolved.
     Process::timeout(120)->run(['docker', 'run', '--detach', '--name', $this->name.'-app', 'alpine:3', 'sleep', '60']);
 
-    // The shell has the same key as the env file, as an app's own .env would
-    // through Laravel's putenv. The file has to win.
+    // The shell has the same key as the env file, the way an app's own .env
+    // reaches child processes: Laravel writes it to putenv, $_SERVER, and
+    // $_ENV, and Symfony only forwards getenv() keys that $_SERVER also has.
+    // The file has to win.
     putenv('GREETING=shadowed by the shell');
+    $_SERVER['GREETING'] = $_ENV['GREETING'] = 'shadowed by the shell';
 
     $result = app(RedeployStack::class)->execute($stack, function (string $type, string $buffer): void {
         // Streamed compose output; nothing to assert on its exact wording.
