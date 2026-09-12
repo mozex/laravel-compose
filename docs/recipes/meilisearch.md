@@ -56,6 +56,8 @@ What the non-obvious lines do:
 
 If the server runs more than one app, change `name:` to `yourapp-meilisearch`. The container name follows it.
 
+The tag is pinned so an upgrade is something you do on purpose. Riding `getmeili/meilisearch:latest` works too: the redeploy's pull step refreshes it on every deploy and `MEILI_UPGRADE_DB` migrates the data, and the worst case of a failed upgrade is a `scout:import`, since the index is rebuilt from your models. Pick that when you'd rather never think about the tag.
+
 ## The stack class
 
 Save it as `app/Docker/Meilisearch/MeilisearchStack.php`:

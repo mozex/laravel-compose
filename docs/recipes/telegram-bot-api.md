@@ -44,7 +44,7 @@ volumes:
         driver: local
 ```
 
-The image tag follows the Bot API version, so `10.3` is Bot API 10.3. `TELEGRAM_STAT` turns on a statistics page on port 8082 inside the container; it's what the healthcheck probes, and it stays unpublished. Only the API port reaches the host, on loopback. The probe uses `127.0.0.1` rather than `localhost` because `localhost` can resolve to `::1` first inside a container and the server listens on IPv4.
+The image tag follows the Bot API version, so `10.3` is Bot API 10.3; `aiogram/telegram-bot-api:latest` works as well and the redeploy's pull step keeps it current. `TELEGRAM_STAT` turns on a statistics page on port 8082 inside the container; it's what the healthcheck probes, and it stays unpublished. Only the API port reaches the host, on loopback. Never publish either port without an address: Docker bypasses the host firewall, and a Bot API server on a public port answers for any bot token. The probe uses `wget` because the image ships busybox and no `curl`, and `127.0.0.1` rather than `localhost` because `localhost` can resolve to `::1` first inside a container while the server listens on IPv4.
 
 If the server runs more than one app, change `name:` to `yourapp-telegram-bot-api`. The container name follows it.
 
@@ -110,11 +110,12 @@ TELEGRAM_BOT_API_URL=http://127.0.0.1:8081
 MANAGE_TELEGRAM_CONTAINER=true
 ```
 
-Point your bot library at that URL instead of `https://api.telegram.org`. With [Nutgram](https://nutgram.dev) that's one key in `config/nutgram.php`:
+Point your bot library at that URL instead of `https://api.telegram.org`. With [Nutgram](https://nutgram.dev) that's two keys in `config/nutgram.php`, the URL and HTTP/2 off, since the local server speaks plain HTTP/1.1:
 
 ```php
 'config' => [
     'api_url' => env('TELEGRAM_BOT_API_URL', 'http://127.0.0.1:8081'),
+    'enable_http2' => false,
 ],
 ```
 
@@ -140,13 +141,19 @@ Then register the webhook the way your library does, against the local server. R
 
 ## Local mode
 
-The server also has a local mode, where `getFile` returns an absolute path on the server's disk instead of a path to download over HTTP. It saves a copy of every file the bot receives, at the cost of the app needing to read the container's directory. Two changes turn it on:
+The server also has a local mode, where `getFile` returns an absolute path on the server's disk instead of a path to download over HTTP. It saves a copy of every file the bot receives, at the cost of the app needing to read the container's directory. Three changes turn it on. In the compose file, the flag and a bind mount in place of the named volume:
 
 ```yaml
         environment:
             TELEGRAM_LOCAL: 1
         volumes:
-            - '/srv/telegram-bot-api:/var/lib/telegram-bot-api'
+            - '${TELEGRAM_STORAGE}:/var/lib/telegram-bot-api'
 ```
 
-The path the API returns starts with `/var/lib/telegram-bot-api`, so the app maps that prefix to the bind-mounted directory when it opens a file. Nutgram has `is_local` and a `local_path_transformer` for exactly this. The container writes as its own user (UID 101), so either make the directory readable to the app user or run the container with the app user's ID. Skip local mode unless you move files large enough for the extra copy to matter.
+In the stack class, the directory, which then lives with the rest of the app's storage and survives releases:
+
+```php
+'TELEGRAM_STORAGE' => storage_path('app/telegram-bot-api'),
+```
+
+The path the API returns starts with `/var/lib/telegram-bot-api`, so the app swaps that prefix for the storage directory when it opens a file. Nutgram has `is_local` and a `local_path_transformer` for exactly this. The container writes as its own user (UID 101), so the app user can read the files but not delete them; to have them owned by the app user instead, give the container an entrypoint that recreates its user with your UID, the way [aiogram/telegram-bot-api#30](https://github.com/aiogram/telegram-bot-api/issues/30) shows. Skip local mode unless you move files large enough for the extra copy to matter.
