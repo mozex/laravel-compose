@@ -29,6 +29,9 @@ Some Laravel apps need a container or two next to them: a Meilisearch index, a T
   - [Health Check](https://mozex.dev/docs/laravel-compose/v1/operating/health-check)
   - [Events](https://mozex.dev/docs/laravel-compose/v1/operating/events)
   - [Testing](https://mozex.dev/docs/laravel-compose/v1/operating/testing)
+- Recipes
+  - [Meilisearch](https://mozex.dev/docs/laravel-compose/v1/recipes/meilisearch)
+  - [Telegram Bot API](https://mozex.dev/docs/laravel-compose/v1/recipes/telegram-bot-api)
 - [Configuration](https://mozex.dev/docs/laravel-compose/v1/configuration)
 - [AI Integration](https://mozex.dev/docs/laravel-compose/v1/ai-integration)
 
@@ -124,7 +127,7 @@ php artisan compose:redeploy
 
 Add `php artisan compose:redeploy` to your deploy script, before any step that talks to the container, and set `MANAGE_MEILISEARCH_CONTAINER=true` on the hosts that run Docker. Every other host skips the stack.
 
-The [documentation site](https://mozex.dev/docs/laravel-compose/v1) covers stack discovery, the redeploy recipe step by step, hosting platforms, remote daemons, and testing.
+The [documentation site](https://mozex.dev/docs/laravel-compose/v1) covers stack discovery, the redeploy recipe step by step, hosting platforms, remote daemons, and testing. It also has copy-and-paste recipes for [Meilisearch](https://mozex.dev/docs/laravel-compose/v1/recipes/meilisearch) and a [Telegram Bot API server](https://mozex.dev/docs/laravel-compose/v1/recipes/telegram-bot-api), each verified against a real daemon.
 
 ## Resources
 

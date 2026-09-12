@@ -24,6 +24,8 @@ Writes `app/Docker/Meilisearch/` (or `--path=Modules/Search/Docker`) with `Meili
 
 Discovery is on by default for `app/Docker/*` and `Modules/*/Docker`. A stack elsewhere goes in `config/compose.php` under `stacks`, or through `Compose::register(MyStack::class)`. A compose directory with no class is still a stack (empty environment).
 
+For Meilisearch or a Telegram Bot API server, use the package's recipes (docs `recipes/meilisearch` and `recipes/telegram-bot-api`) rather than writing a compose file from scratch: they carry the image tag, healthcheck, upgrade and file-descriptor settings, the stack class, the `config/services.php` block, and the `.env` keys, all verified against a real daemon.
+
 ## The Stack class
 
 Override only what differs from the defaults. `name()`, `directory()`, and `containerNames()` are read from the compose file and the class location.

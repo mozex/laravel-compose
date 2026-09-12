@@ -45,3 +45,5 @@ The [Redeploy](./deploying/redeploy.md) page walks through each step and what ha
 ## Where to start
 
 [Installation](./installation.md) takes a minute. [Defining a Stack](./stacks/defining-a-stack.md) covers the class, and [Compose Files](./stacks/compose-files.md) covers what the compose file should look like for a container an app depends on. When it's time to ship, read [Hosting Platforms](./deploying/hosting-platforms.md) for the line that goes in your deploy script.
+
+If what you need is [Meilisearch](./recipes/meilisearch.md) or a [Telegram Bot API server](./recipes/telegram-bot-api.md), the recipes have every file ready to paste.
