@@ -1,6 +1,6 @@
 ---
 title: Configuration
-weight: 5
+weight: 6
 ---
 
 Publish the file with `php artisan vendor:publish --tag=laravel-compose-config`. Every key has a default that works for a single server running the app and its containers.
