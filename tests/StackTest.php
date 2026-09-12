@@ -59,6 +59,27 @@ it('reads container names from the compose file and ships quiet defaults', funct
         ->and($stack->context())->toBeNull();
 });
 
+it('resolves container names the way compose will: shell, then env file, then the project name', function (): void {
+    $compose = "name: shop\nservices:\n    app:\n        image: alpine\n        container_name: \${COMPOSE_PROJECT_NAME}-\${COMPOSE_TEST_ROLE}\n";
+    $classed = fakeStack(['name' => 'shop', 'compose' => $compose, 'environment' => ['COMPOSE_TEST_ROLE' => 'api']]);
+    $handWritten = fakeStack(['name' => 'shop', 'compose' => $compose, 'environment' => []]);
+    File::put($handWritten->directory().'/.env', "COMPOSE_TEST_ROLE=worker\n");
+    $bare = fakeStack(['name' => 'shop', 'compose' => $compose, 'environment' => []]);
+
+    expect($classed->containerNames())->toBe(['shop-api'])
+        ->and($handWritten->containerNames())->toBe(['shop-worker'])
+        ->and($bare->containerNames())->toBe(['shop-']);
+
+    putenv('COMPOSE_TEST_ROLE=shell');
+
+    try {
+        expect($bare->containerNames())->toBe(['shop-shell'])
+            ->and($classed->containerNames())->toBe(['shop-api']);
+    } finally {
+        putenv('COMPOSE_TEST_ROLE');
+    }
+});
+
 it('runs its status, logs, exec, and down helpers through compose', function (): void {
     // Match on the arguments: a string pattern like `*ps*` would also match
     // a temp path holding those letters.

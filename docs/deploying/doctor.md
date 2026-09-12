@@ -21,11 +21,11 @@ The doctor is a preflight. Every check is something that broke a real deploy onc
 - The compose file parses.
 - A `Stack` class found in the directory can be autoloaded. When it can't, the stack silently runs class-less, and the warning names the class.
 - `environment()` renders: valid keys, no line breaks, supported value types.
-- Every `${VAR}` the compose file consumes without a default is a key of `environment()`. A stack with nothing to write (a class-less one) is checked against the env file already in its directory instead, the one a redeploy leaves alone. A variable that only the shell provides (`${HOME}`, a CI secret) is a warning rather than an error: compose will resolve it on this machine, but the stack doesn't control it.
+- Every `${VAR}` the compose file consumes without a default is a key of `environment()`. A stack with nothing to write (a class-less one) is checked against the env file already in its directory instead, the one a redeploy leaves alone. `${COMPOSE_PROJECT_NAME}` always counts as provided. A variable that only the shell provides (`${HOME}`, a CI secret) is a warning rather than an error: compose will resolve it on this machine, but the stack doesn't control it.
 - `docker compose config` accepts the file with the environment the stack would write. The env is passed through a temporary file, so the stack directory isn't touched. A stack with nothing to write is checked with its own env file.
 - No publish listens on every interface. Addresses given as `${BIND:-...}` are resolved through the stack's environment first (or the hand-written env file, for a stack with nothing to write), so a variable that resolves to `127.0.0.1` passes.
 - For remote daemons, no bind mounts.
-- For local daemons with a link directory, the link can be created or refreshed by this user. When it can't, the warning names the directory that needs `chown` and the user to give it to. A directory with content sitting at the link path gets its own warning, since the redeploy leaves it alone.
+- For local daemons with a link directory, the link can be created or refreshed by this user. When it can't, the warning names the directory that needs `chown` and the user to give it to. A directory with content sitting at the link path gets its own warning, since the redeploy leaves it alone; so does one this user can't read.
 - The env file would be ignored by git, when the stack lives in a repository.
 - Disabled stacks and a disabled master switch are noted, so "why didn't it deploy" has an answer.
 

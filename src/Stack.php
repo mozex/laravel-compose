@@ -8,6 +8,7 @@ use Illuminate\Container\Container;
 use Illuminate\Contracts\Process\ProcessResult;
 use Mozex\Compose\Exceptions\ComposeException;
 use Mozex\Compose\Support\ComposeFile;
+use Mozex\Compose\Support\EnvFile;
 use Mozex\Compose\Support\StackStatus;
 use ReflectionClass;
 
@@ -72,12 +73,26 @@ abstract class Stack
      * Fixed container names to force-remove before `up`. A container created
      * under another project context (a renamed directory, an older layout)
      * is invisible to this project's `up` and wedges it with a name conflict.
+     * A `${VAR}` in a name is resolved the way compose resolves it.
      *
      * @return list<string>
      */
     public function containerNames(): array
     {
-        return $this->compose()->containerNames();
+        return $this->compose()->containerNames($this->interpolationValues());
+    }
+
+    /**
+     * What compose resolves `${VAR}` against for this stack: the shell, then
+     * the env file on top of it (the redeploy unsets every key it writes for
+     * the compose process, so the file wins for those), and the project name
+     * compose injects as COMPOSE_PROJECT_NAME.
+     *
+     * @return array<string, string>
+     */
+    public function interpolationValues(): array
+    {
+        return [...getenv(), ...$this->envFile()->valuesFor($this), 'COMPOSE_PROJECT_NAME' => $this->name()];
     }
 
     /**
@@ -226,5 +241,10 @@ abstract class Stack
     protected function docker(): Docker
     {
         return Container::getInstance()->make(Docker::class);
+    }
+
+    protected function envFile(): EnvFile
+    {
+        return Container::getInstance()->make(EnvFile::class);
     }
 }

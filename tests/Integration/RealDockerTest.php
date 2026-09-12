@@ -41,7 +41,7 @@ beforeEach(function (): void {
             'services:',
             '    app:',
             '        image: alpine:3',
-            "        container_name: {$this->name}-app",
+            '        container_name: ${COMPOSE_PROJECT_NAME}-app',
             '        command: sh -c "echo $GREETING && sleep ${SLEEP:-60}"',
             '        environment:',
             '            GREETING: ${GREETING}',

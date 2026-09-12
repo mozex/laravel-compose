@@ -121,6 +121,19 @@ it('reports a variable the compose file needs and the stack does not write', fun
         ->and($report->errors()[0]->message)->toBe('The compose file consumes SECRET without a default, but environment() does not provide it.');
 });
 
+it('counts COMPOSE_PROJECT_NAME as provided', function (): void {
+    Compose::register(fakeStack([
+        'name' => 'named',
+        'compose' => "name: named\nservices:\n    app:\n        image: alpine\n        container_name: \${COMPOSE_PROJECT_NAME}-app\n",
+        'environment' => [],
+    ]));
+
+    $report = app(Validator::class)->run(withDaemon: false);
+
+    expect($report->isClean())->toBeTrue(implode("\n", $report->lines()))
+        ->and($report->hasWarnings())->toBeFalse();
+});
+
 it('warns instead of failing for a variable the shell provides', function (): void {
     Compose::register(fakeStack([
         'name' => 'shelly',

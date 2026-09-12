@@ -30,6 +30,8 @@ services:
 
 `compose:make` writes names in that form, using the app's `APP_NAME`. On a server that runs one app, the plain names are fine.
 
+A container name can use variables. `container_name: ${COMPOSE_PROJECT_NAME}-meilisearch` follows the project name without repeating it, and a `${VAR}` from the env file works too. The sweep resolves them the way compose does before it runs `docker rm -f`, so the container that exists is the one removed.
+
 ## Publish on loopback
 
 ```yaml

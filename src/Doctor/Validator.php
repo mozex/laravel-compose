@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Mozex\Compose\Doctor;
 
-use BackedEnum;
 use Illuminate\Contracts\Config\Repository;
 use Illuminate\Support\Facades\Process;
 use Mozex\Compose\Docker;
@@ -13,7 +12,6 @@ use Mozex\Compose\Stack;
 use Mozex\Compose\StackRegistry;
 use Mozex\Compose\Support\EnvFile;
 use Mozex\Compose\Support\OperatorLink;
-use Stringable;
 use Throwable;
 
 /**
@@ -148,12 +146,13 @@ class Validator
         }
 
         // A stack with nothing to write is fed by a file written by hand, the
-        // one a redeploy leaves alone; its variables count as provided.
+        // one a redeploy leaves alone; its variables count as provided, and so
+        // does COMPOSE_PROJECT_NAME, which compose fills from --project-name.
         $handWritten = $this->envFile->isHandWritten($stack);
         $envPath = $this->envFile->pathFor($stack);
-        $strings = $handWritten ? EnvFile::parse((string) file_get_contents($envPath)) : $this->stringValues($environment);
+        $strings = $this->envFile->valuesFor($stack);
 
-        $missing = array_values(array_diff($compose->requiredVariables(), array_keys($strings)));
+        $missing = array_values(array_diff($compose->requiredVariables(), array_keys($strings), ['COMPOSE_PROJECT_NAME']));
 
         // Compose reads the shell before the env file, so a variable this
         // process has (HOME, PATH, a CI secret) resolves on this machine. It
@@ -180,7 +179,7 @@ class Validator
             );
         }
 
-        foreach ($compose->publicPublishes($strings) as $publish) {
+        foreach ($compose->publicPublishes($stack->interpolationValues()) as $publish) {
             $problems[] = Problem::warning(
                 "Publishes on every interface: {$publish}. Docker bypasses UFW and similar host firewalls, so bind "
                 .'to 127.0.0.1 or a private address unless the port must be public.',
@@ -388,30 +387,6 @@ class Validator
         }
 
         return $this->trim($output);
-    }
-
-    /**
-     * The environment as compose will read it back from the env file, for
-     * resolving `${VAR}` in the checks that interpolate.
-     *
-     * @param  array<string, mixed>  $environment
-     * @return array<string, string>
-     */
-    protected function stringValues(array $environment): array
-    {
-        $strings = [];
-
-        foreach ($environment as $key => $value) {
-            $strings[(string) $key] = match (true) {
-                $value === null => '',
-                is_bool($value) => $value ? 'true' : 'false',
-                $value instanceof BackedEnum => (string) $value->value,
-                is_scalar($value), $value instanceof Stringable => (string) $value,
-                default => '',
-            };
-        }
-
-        return $strings;
     }
 
     protected function user(): string

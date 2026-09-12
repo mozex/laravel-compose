@@ -42,6 +42,26 @@ it('collects the fixed container names sorted', function (): void {
         ->and(ComposeFile::load(fixturesPath('Plain/Mailpit/compose.yaml'))->containerNames())->toBe([]);
 });
 
+it('resolves variables in container names and drops names docker would refuse', function (): void {
+    $directory = temporaryDirectory();
+    File::put($directory.'/compose.yaml', implode("\n", [
+        'services:',
+        '    app:',
+        '        image: alpine',
+        '        container_name: ${COMPOSE_PROJECT_NAME}-app',
+        '    worker:',
+        '        image: alpine',
+        '        container_name: ${PREFIX:-shop}-worker',
+        '    ghost:',
+        '        image: alpine',
+        '        container_name: ${MISSING}-ghost',
+    ]));
+    $compose = ComposeFile::load($directory.'/compose.yaml');
+
+    expect($compose->containerNames(['COMPOSE_PROJECT_NAME' => 'shop-meili', 'PREFIX' => 'acme']))->toBe(['acme-worker', 'shop-meili-app'])
+        ->and($compose->containerNames())->toBe(['shop-worker']);
+});
+
 it('lists the variables the file consumes without a default', function (): void {
     expect(ComposeFile::load(fixturesPath('Modules/Gateway/Docker/docker-compose.yml'))->requiredVariables())
         ->toBe(['GATEWAY_DOMAIN', 'GATEWAY_SECRET'])

@@ -106,19 +106,30 @@ class ComposeFile
     }
 
     /**
-     * Every fixed `container_name`, sorted. Services without one get a
-     * Compose-generated name and need no sweep.
+     * Every fixed `container_name`, resolved and sorted. A `${VAR}` in a name
+     * is interpolated with the given values, as compose does at `up`, so the
+     * sweep removes the container that actually exists. A name that does not
+     * resolve to something Docker accepts is left out: nothing by that name
+     * can be running. Services without a fixed name get a Compose-generated
+     * one and need no sweep.
      *
+     * @param  array<string, string>  $environment  Values used to resolve `${VAR}` in the names
      * @return list<string>
      */
-    public function containerNames(): array
+    public function containerNames(array $environment = []): array
     {
         $names = [];
 
         foreach ($this->services() as $service) {
             $name = $service['container_name'] ?? null;
 
-            if (is_string($name) && $name !== '') {
+            if (! is_string($name) || $name === '') {
+                continue;
+            }
+
+            $name = self::interpolate($name, $environment);
+
+            if (preg_match('/^[a-zA-Z0-9][a-zA-Z0-9_.-]+$/', $name) === 1) {
                 $names[] = $name;
             }
         }

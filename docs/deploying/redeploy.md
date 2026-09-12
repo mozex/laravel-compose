@@ -23,13 +23,13 @@ The order isn't cosmetic. Each step is placed where it is because of a rollout t
 
 **4. Pull, result ignored.** `compose pull --ignore-buildable --quiet`. `up` never refreshes a tag it already has locally, so without this a floating tag would freeze at whatever the first deploy pulled. Ignoring the result means a registry outage redeploys the local image instead of failing the rollout. Pulling before the sweep means the old container keeps serving through the download.
 
-**5. Sweep, result ignored.** `docker rm -f` on every `container_name` in the compose file. A fixed-name container created under a different project context (the directory was renamed, the stack moved, an older layout ran) is invisible to this project's `up`, which then dies with a name conflict. Removing by name clears it whatever created it. A missing container is the normal case, hence the ignored result.
+**5. Sweep, result ignored.** `docker rm -f` on every `container_name` in the compose file, with `${VAR}` and `${COMPOSE_PROJECT_NAME}` resolved the way compose resolves them. A fixed-name container created under a different project context (the directory was renamed, the stack moved, an older layout ran) is invisible to this project's `up`, which then dies with a name conflict. Removing by name clears it whatever created it. A missing container is the normal case, hence the ignored result.
 
 Container names are global on a Docker host. Two apps on one server that both name a container `meilisearch` would sweep each other's, so prefix names with the app (`shop-meilisearch`); the scaffolder does that for you. [Compose Files](../stacks/compose-files.md) has the details.
 
 **6. Up.** `compose up --detach --remove-orphans`, plus `--build` for building stacks and `--wait --wait-timeout N` when `wait()` returns a number. `--remove-orphans` clears services removed from the compose file since the last rollout. A failed `up` fails the stack.
 
-Because the sweep runs every time, `up` always creates fresh containers from the env file just written. A value can't be left un-applied on a container that was already running.
+Because the sweep runs every time, `up` always creates fresh containers from the env file just written. A value can't be left un-applied on a container that was already running. And the compose process runs with the file's keys unset from its own environment, so the app's `.env` (which Laravel exports to every child process) can't shadow the file either; [Environment Files](../stacks/environment-files.md) has the details.
 
 A step that runs past its timeout counts as a failed step, nothing more: a stalled pull is ignored like a failed one, a hung `up` fails the stack and fires the failure event, and the next stack still gets its turn. Timeouts live in [configuration](../configuration.md) and on the stack.
 

@@ -62,7 +62,8 @@ class MeilisearchStack extends Stack
 
 Rules that matter:
 
-- Every `${VAR}` the compose file consumes without a default must be a key of `environment()`. `${VAR:-x}` is fine without one. `compose:doctor` enforces it; for a class-less stack it reads the hand-written env file in the directory instead.
+- Every `${VAR}` the compose file consumes without a default must be a key of `environment()`. `${VAR:-x}` is fine without one, and so is `${COMPOSE_PROJECT_NAME}`, which compose fills from the project name. `compose:doctor` enforces it; for a class-less stack it reads the hand-written env file in the directory instead.
+- The env file always wins over the shell: every compose command runs with the keys the stack writes unset, so the app's own `.env` (which Laravel exports to child processes) can't shadow a stack value that shares its name.
 - Derive a port from the URL the app already dials rather than adding a second config key; the two can then never disagree.
 - Never edit the generated `.env` on a server. The next redeploy overwrites it.
 - Values may be scalars, null, backed enums, or `Stringable`; no arrays, no line breaks. Quoting is handled.
@@ -95,7 +96,7 @@ volumes:
 ```
 
 - Give every service a `container_name`. Publish on `127.0.0.1` (or a private address), never `0.0.0.0` or a bare `7700:7700`.
-- Project and container names are global on the host. When several apps share a server, prefix both with the app (`shop-meilisearch`); `compose:make` writes `{app}-{stack}` names by default.
+- Project and container names are global on the host. When several apps share a server, prefix both with the app (`shop-meilisearch`); `compose:make` writes `{app}-{stack}` names by default. `container_name: ${COMPOSE_PROJECT_NAME}-meilisearch` works too; the sweep resolves `${VAR}` in names before `docker rm -f`.
 - Add a healthcheck; `wait()`, `compose:status`, and the health check read it.
 - Prefer named volumes. A bind mount of a stack-local file pins the container to the release directory and cannot work on a remote daemon.
 - Production-only sidecars go behind `profiles: [tls]` and `profiles()` on the class.

@@ -40,6 +40,6 @@ The file is written with `0600` permissions and sits inside the working tree. `c
 
 ## The contract with the compose file
 
-Every variable the compose file consumes without a default must be a key of `environment()`. `${MEILI_KEY}` and `${MEILI_KEY:?message}` count; `${PORT:-7700}` and `${PORT-7700}` don't, they carry their own fallback. The doctor checks this before anything touches Docker, so a renamed key fails the preflight instead of the rollout. For a stack with an empty `environment()`, the keys of a hand-written env file in its directory count instead.
+Every variable the compose file consumes without a default must be a key of `environment()`. `${MEILI_KEY}` and `${MEILI_KEY:?message}` count; `${PORT:-7700}` and `${PORT-7700}` don't, they carry their own fallback, and neither does `${COMPOSE_PROJECT_NAME}`, which compose fills from the project name the package passes. The doctor checks this before anything touches Docker, so a renamed key fails the preflight instead of the rollout. For a stack with an empty `environment()`, the keys of a hand-written env file in its directory count instead.
 
 Knobs the stack doesn't own belong in the compose file as defaults. Bind addresses, timeouts, log levels: give them `${VAR:-value}` there and only write the ones the app decides.
