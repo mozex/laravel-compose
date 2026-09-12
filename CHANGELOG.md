@@ -2,6 +2,15 @@
 
 All notable changes to `laravel-compose` will be documented in this file.
 
+## 1.0.1 - 2026-09-12
+
+### What's Changed
+
+* Scaffolded healthchecks probe `127.0.0.1` instead of `localhost`. Inside a container `localhost` can resolve to `::1` first while the service listens on IPv4, and the check then fails with "connection refused" against a service that is fine. The compose file `compose:make` writes, the docs, and the Boost skill all follow suit.
+* Two copy-and-paste recipes in the docs: Meilisearch for Laravel Scout, and a local Telegram Bot API server. Each has the compose file, the stack class, the `config/services.php` block, the `.env` keys, and the deploy lines, and both were brought up against a real daemon before publishing.
+
+**Full Changelog**: https://github.com/mozex/laravel-compose/compare/1.0.0...1.0.1
+
 ## 1.0.0 - 2026-09-12
 
 ### What's Changed
