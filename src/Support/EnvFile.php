@@ -161,7 +161,10 @@ class EnvFile
             return $value;
         }
 
-        if (! str_contains($value, "'")) {
+        // Compose reads a backslash before the closing quote as an escaped
+        // quote, single quotes included, so a value ending in one has to be
+        // double-quoted or the file fails with "unterminated quoted value".
+        if (! str_contains($value, "'") && ! str_ends_with($value, '\\')) {
             return "'".$value."'";
         }
 

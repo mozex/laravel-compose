@@ -33,7 +33,9 @@ it('quotes values compose would otherwise truncate or misread', function (): voi
         ->and(EnvFile::quote('say "hi"'))->toBe("'say \"hi\"'")
         ->and(EnvFile::quote('$literal'))->toBe("'\$literal'")
         ->and(EnvFile::quote("it's"))->toBe('"it\'s"')
-        ->and(EnvFile::quote("it's \"quoted\" \\ \$5"))->toBe('"it\'s \\"quoted\\" \\\\ $$5"');
+        ->and(EnvFile::quote("it's \"quoted\" \\ \$5"))->toBe('"it\'s \\"quoted\\" \\\\ $$5"')
+        ->and(EnvFile::quote('a\\b'))->toBe("'a\\b'")
+        ->and(EnvFile::quote('ends with \\'))->toBe('"ends with \\\\"');
 });
 
 it('refuses keys, line breaks, and values it cannot represent', function (): void {
@@ -126,6 +128,7 @@ it('round-trips every quoting shape through docker compose itself', function ():
         'HASHED' => 'value#with#hashes',
         'DOUBLE' => 'say "hi" $HOME',
         'MIXED' => "it's \"quoted\" \\ back \$5 and \${SPACED}",
+        'TRAILING' => 'ends with \\',
         'BLANK' => '',
     ];
 

@@ -23,6 +23,7 @@ Values are quoted with Compose's own rules, because a raw `KEY=value` line break
 | `hello world # tag` | `'hello world # tag'` | An unquoted ` #` starts a comment; the value would be truncated. |
 | `say "hi" $HOME` | `'say "hi" $HOME'` | Single quotes keep everything literal, including the dollar. |
 | `it's` | `"it's"` | Single quotes can't hold a single quote, so double quotes with `\`, `"`, and `$` escaped. |
+| `ends with \` | `"ends with \\"` | Compose reads a backslash before a closing quote as an escaped quote, single quotes included, and never finds the end of the value. |
 | a value with a line break | throws | Env files are line-oriented; there is no way to write it. |
 
 The test suite round-trips every one of those through `docker compose config`, so what you put in `environment()` is what the container sees.
