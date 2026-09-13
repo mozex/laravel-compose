@@ -2,6 +2,16 @@
 
 All notable changes to `laravel-compose` will be documented in this file.
 
+## 1.0.2 - 2026-09-13
+
+### What's Changed
+
+* The operator link is now named after the stack with dashes turned into underscores, so a stack named `acme-search` is linked at `/home/ploi/containers/acme_search`. That's the directory Ploi's panel creates for a container of that name. Until now the link landed next to it, where the panel never looks. A server that already has a dashed link keeps it as a leftover, so delete it once. Stacks that override `linkPath()` aren't affected.
+* When a directory with files sits where the link should go, the deploy log and `compose:doctor` now print the `sudo rm -rf` that clears it. Ploi's panel leaves exactly that behind: a root-owned directory holding the panel's own `docker-compose.yml`, which the deploy user can't remove.
+* The Ploi section of the hosting docs covers the setup in three steps: create the container in the panel with the stack's name, remove the directory the panel created, then deploy.
+
+**Full Changelog**: https://github.com/mozex/laravel-compose/compare/1.0.1...1.0.2
+
 ## 1.0.1 - 2026-09-12
 
 ### What's Changed
