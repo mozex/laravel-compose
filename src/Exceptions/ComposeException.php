@@ -87,7 +87,9 @@ class ComposeException extends RuntimeException
         return new self(
             "Cannot refresh the operator link for stack [{$stack}]: whatever sits at [{$path}] resisted removal. "
             .'An old link or an empty directory is replaced; a file or a directory with content is left alone. '
-            .'Move it away, or make the path writable by the deploy user.',
+            .'Move it away, or make the path writable by the deploy user. '
+            ."A hosting panel's container directory (Ploi creates one as root, with its own docker-compose.yml inside) "
+            ."is removed once with: sudo rm -rf {$path}",
         );
     }
 

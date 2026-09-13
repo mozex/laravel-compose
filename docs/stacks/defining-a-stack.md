@@ -73,7 +73,7 @@ You only override what differs from the default.
 | `timeout()` | config `timeouts.up` (120) | Seconds allowed for `up`. Raised automatically to `wait() + 30` when waiting. |
 | `pullTimeout()` | config `timeouts.pull` (300) | Seconds allowed for `pull`. |
 | `buildTimeout()` | config `timeouts.build` (600) | Seconds allowed for `build`. |
-| `linkPath()` | `{link_directory}/{name}` | Where the operator link points. An empty string disables the link for this stack. |
+| `linkPath()` | `{link_directory}/{name}`, dashes as underscores | Where the operator link points. An empty string disables the link for this stack. |
 | `host()` | config `docker.host` | `DOCKER_HOST` for this stack. |
 | `context()` | config `docker.context` | Docker context for this stack. |
 

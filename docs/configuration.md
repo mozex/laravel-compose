@@ -52,9 +52,9 @@ Directories or globs to scan. A match holding a compose file is a stack; otherwi
 
 ## `link_directory`
 
-When set, each stack is linked at `{link_directory}/{name}` so a hosting panel or a person on the server finds it outside the release tree. Ploi keeps containers in `/home/{user}/containers`. Empty means no link. A stack overrides the full path through `linkPath()`, and returns an empty string to opt out. Links are skipped for remote daemons.
+When set, each stack is linked at `{link_directory}/{name}` so a hosting panel or a person on the server finds it outside the release tree. Dashes in the name become underscores (`acme-search` is linked as `acme_search`), because that's the directory Ploi's panel creates for a container of that name. Ploi keeps containers in `/home/{user}/containers`. Empty means no link. A stack overrides the full path through `linkPath()`, and returns an empty string to opt out. Links are skipped for remote daemons.
 
-An old link or an empty directory at that path is replaced. A directory with content is never deleted: the link is skipped, the reason is printed in the deploy output, and `compose:doctor` warns about it until the content is moved away.
+An old link or an empty directory at that path is replaced. A directory with content is never deleted: the link is skipped, the reason is printed in the deploy output, and `compose:doctor` warns about it until the content is moved away. Ploi's panel leaves exactly that behind, owned by root; [Hosting Platforms](./deploying/hosting-platforms.md#ploi) has the one-time fix.
 
 ## `docker.binary`
 

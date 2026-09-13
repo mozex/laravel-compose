@@ -44,6 +44,8 @@ it('derives the link path from the configured directory and the stack name', fun
     config()->set('compose.link_directory', '/home/deploy/containers/');
 
     expect($link->pathFor(fakeStack(['name' => 'meili'])))->toBe('/home/deploy/containers/meili')
+        ->and($link->pathFor(fakeStack(['name' => 'acme-search'])))->toBe('/home/deploy/containers/acme_search')
+        ->and($link->pathFor(fakeStack(['name' => 'acme-search', 'linkPath' => '/srv/acme-search'])))->toBe('/srv/acme-search')
         ->and($link->pathFor(fakeStack(['linkPath' => '/srv/stacks/custom/'])))->toBe('/srv/stacks/custom')
         ->and($link->pathFor(fakeStack(['linkPath' => ''])))->toBeNull()
         ->and($link->pathFor(fakeStack(['linkPath' => '  '])))->toBeNull();
@@ -120,13 +122,20 @@ it('refuses a plain file at the link path', function (): void {
         ->and(File::get($file))->toBe('operator notes');
 });
 
-it('explains what is replaced and what is left alone', function (): void {
+it('explains what is replaced, what is left alone, and how to clear a panel directory', function (): void {
     $squatter = linkPath();
     File::ensureDirectoryExists($squatter);
     File::put($squatter.'/stale.txt', 'left behind');
 
-    expect(fn () => app(OperatorLink::class)->refresh(fakeStack(['name' => 'wedged', 'linkPath' => $squatter])))
-        ->toThrow(ComposeException::class, 'a directory with content is left alone');
+    try {
+        app(OperatorLink::class)->refresh(fakeStack(['name' => 'wedged', 'linkPath' => $squatter]));
+        $message = '';
+    } catch (ComposeException $exception) {
+        $message = $exception->getMessage();
+    }
+
+    expect($message)->toContain('a directory with content is left alone')
+        ->and($message)->toContain("is removed once with: sudo rm -rf {$squatter}");
 
     @unlink($squatter.'/stale.txt');
 });

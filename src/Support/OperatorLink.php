@@ -38,12 +38,22 @@ class OperatorLink
                 return null;
             }
 
-            $path = rtrim(trim($directory), '/\\').'/'.$stack->name();
+            $path = rtrim(trim($directory), '/\\').'/'.$this->nameFor($stack);
         }
 
         $path = rtrim(trim($path), '/\\');
 
         return $path === '' ? null : $path;
+    }
+
+    /**
+     * The link's name inside the link directory: the stack name with dashes
+     * turned into underscores, because Ploi's panel creates the directory of
+     * a container named acme-search as acme_search and only looks there.
+     */
+    protected function nameFor(Stack $stack): string
+    {
+        return str_replace('-', '_', $stack->name());
     }
 
     /**

@@ -357,17 +357,20 @@ it('warns about a stack class that cannot be autoloaded', function (): void {
 });
 
 it('warns when a directory with content sits where the operator link should go', function (): void {
+    // What Ploi's panel leaves behind: the container's directory, underscored,
+    // holding the panel's own compose file.
     $directory = temporaryDirectory();
-    File::ensureDirectoryExists($directory.'/occupied');
-    File::put($directory.'/occupied/keep.txt', 'mine');
+    File::ensureDirectoryExists($directory.'/acme_search');
+    File::put($directory.'/acme_search/docker-compose.yml', 'services: {}');
     config()->set('compose.link_directory', $directory);
-    Compose::register(fakeStack(['name' => 'occupied']))->register(fakeStack(['name' => 'free']));
+    Compose::register(fakeStack(['name' => 'acme-search']))->register(fakeStack(['name' => 'free']));
 
     $report = app(Validator::class)->run(withDaemon: false);
 
     expect($report->warnings())->toHaveCount(1)
-        ->and($report->warnings()[0]->stack)->toBe('occupied')
-        ->and($report->warnings()[0]->message)->toContain('is a directory with content, not a link');
+        ->and($report->warnings()[0]->stack)->toBe('acme-search')
+        ->and($report->warnings()[0]->message)->toContain('is a directory with content, not a link')
+        ->and($report->warnings()[0]->message)->toContain("remove it once: sudo rm -rf {$directory}/acme_search");
 });
 
 it('warns when git would not ignore the env file, and stays quiet outside a repository', function (): void {

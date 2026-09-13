@@ -53,7 +53,7 @@ Business sponsors get logo placement in package READMEs. [**See sponsorship tier
 
 **Works without a panel.** `compose:status`, `compose:logs`, `compose:down`, and a `StacksCheck` for spatie/laravel-health cover the day-two work. Stack objects expose `status()`, `logs()`, `exec()`, and `down()` for your own commands.
 
-**Panels keep working.** Set `COMPOSE_LINK_DIRECTORY=/home/ploi/containers` (or whatever user your host runs as) and every stack gets a stable link there, so Ploi's container screen shows the logs of what the deploy just created.
+**Panels keep working.** Set `COMPOSE_LINK_DIRECTORY=/home/ploi/containers` (or whatever user your host runs as) and every stack gets a stable link there under the name Ploi's panel gives it, so the container screen shows the logs of what the deploy just created.
 
 **Same server or another one.** The default is the daemon on the machine that runs the deploy. Point `COMPOSE_DOCKER_HOST` at `ssh://deploy@docker-box`, or name a docker context, and the same commands run against that machine.
 

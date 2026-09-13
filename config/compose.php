@@ -33,10 +33,12 @@ return [
     /*
      * Optional directory each stack gets linked into as
      * {link_directory}/{stack name}, so a hosting panel or a person on the
-     * server finds the stack outside the release tree. Ploi keeps its
-     * containers in /home/{user}/containers, where {user} is the system user
-     * the site runs as. Leave empty to skip linking. A stack can override the
-     * full path through linkPath(). Linking is skipped for remote daemons.
+     * server finds the stack outside the release tree. Dashes in the name
+     * become underscores, as in the directory Ploi's panel creates for a
+     * container. Ploi keeps its containers in /home/{user}/containers, where
+     * {user} is the system user the site runs as. Leave empty to skip
+     * linking. A stack can override the full path through linkPath().
+     * Linking is skipped for remote daemons.
      */
     'link_directory' => env('COMPOSE_LINK_DIRECTORY'),
 

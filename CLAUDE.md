@@ -19,7 +19,7 @@ src/
   Support/ComposeFile.php   Symfony YAML parse: name, container names, required ${VAR}s, profiles, bind mounts, public publishes, interpolation.
   Support/EnvFile.php       Env path from config, hand-written file detection, parse() with the quoting rules quote() writes,
                             0600 perms, refuses newlines.
-  Support/OperatorLink.php  Symlink/junction refresh at {link_directory}/{name}; never fatal to a rollout.
+  Support/OperatorLink.php  Symlink/junction refresh at {link_directory}/{name with _ for -}; never fatal to a rollout.
   Support/StackStatus.php   Parses `compose ps --format json` (NDJSON and array forms) into ContainerStatus rows.
   Support/ContainerStatus.php One `ps` row: name, service, state, health, exit code, published ports; isRunning()/isFinished()/isHealthy().
   Support/NamespaceResolver Directory -> namespace via Composer's PSR-4 map (used by compose:make).
@@ -49,7 +49,7 @@ Dependency flow: Commands -> Compose/Docker/Validator -> Stack/Registry -> Suppo
 - **Compose project name and directory are always explicit** (`--project-name`, `--project-directory`, `--file`) so two stacks in directories both called `Docker` cannot collide.
 - **Defaults come from the compose file**, not from duplicated PHP: `name:` and `container_name:` are parsed, and the doctor checks every non-defaulted `${VAR}` against `environment()`. That replaces a hand-written parity test.
 - **Class-less stacks are valid.** A directory with a compose file and no class is a `DiscoveredStack`; compose-side `${VAR:-default}` carries the knobs.
-- **The operator link is convenience.** Its failure is reported and printed but never fails the deploy. It is skipped for remote daemons. The link directory is a full path; the package never assumes a username. An old link or an empty directory at the path is replaced; a directory with content is refused, never deleted (the doctor warns about it).
+- **The operator link is convenience.** Its default name is the stack name with dashes as underscores (`OperatorLink::nameFor()`), because Ploi's panel creates `acme_search` for a container named `acme-search`; seen on a real server, although Ploi's API docs show dashes kept. The panel's directory is root-owned with its own `docker-compose.yml`, so the doctor and the resisted-link message print the one-time `sudo rm -rf`. Its failure is reported and printed but never fails the deploy. It is skipped for remote daemons. The link directory is a full path; the package never assumes a username. An old link or an empty directory at the path is replaced; a directory with content is refused, never deleted (the doctor warns about it).
 - **Remote daemons** are `DOCKER_HOST` (env) or `--context` (flag), per stack or global. Bind mounts of stack-local files do not exist there; the doctor warns.
 - **The doctor requires Compose 2.17** (`Validator::MINIMUM_COMPOSE_VERSION`): `pull --ignore-buildable` arrived in 2.15 and `up --wait-timeout` in 2.17. It warns rather than errors for a `${VAR}` that only the shell provides.
 - **PHP 8.2 floor.** No typed class constants, no `new X()->method()` without parentheses. PHPStan `type_coverage.constant` is 0 for that reason.

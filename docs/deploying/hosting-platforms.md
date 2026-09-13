@@ -17,16 +17,29 @@ php artisan compose:redeploy
 
 If you drive deploys through Composer scripts, it's the first entry of `deploy:after`.
 
-Ploi's panel keeps its containers in `/home/{user}/containers/{name}`, where `{user}` is the system user the site runs as. Point the link directory there and every stack gets a link named after itself, so the panel's container screen shows the logs of what the deploy just created:
+Ploi's panel keeps its containers in `/home/{user}/containers`, where `{user}` is the system user the site runs as. Point the link directory there and every stack gets a link the panel can find, so its container screen shows the logs of what the deploy just created:
 
 ```
 COMPOSE_LINK_DIRECTORY=/home/ploi/containers
 ```
 
-Two things to know about that directory:
+The panel only lists containers it has in its own database, so the setup takes one trip to the server. For a stack named `acme-search`:
 
-- The panel creates it as root the first time you open the containers screen. The deploy user then can't write the link. Run `sudo chown ploi:ploi /home/ploi/containers` once (with your user in place of `ploi`); `compose:doctor` prints that exact command when it applies. Until it's done, the link is skipped with a line in the deploy log and the container still comes up.
-- An empty directory the panel created for a stack gives way to the link. A directory that already has files in it doesn't: the package never deletes content, so move the files away first, or the link stays skipped.
+1. Create a container in the panel named `acme-search`, the stack's name. Ploi turns the dashes into underscores and creates `/home/ploi/containers/acme_search`. The link uses the same underscored name.
+2. That directory belongs to root and holds the panel's own `docker-compose.yml`, so the deploy user can't replace it. Remove it once:
+
+   ```bash
+   sudo rm -rf /home/ploi/containers/acme_search
+   ```
+
+3. Deploy. `compose:redeploy` puts the link where the directory was, and the panel reads the stack from your release.
+
+Skip step 2 and nothing breaks: the container still comes up, the deploy log says why the link was skipped, and `compose:doctor` prints the `rm` command for that path.
+
+A few more things to know:
+
+- The panel may create `/home/ploi/containers` itself as root the first time you open the containers screen. The deploy user then can't write any link there. Run `sudo chown ploi:ploi /home/ploi/containers` once (with your user in place of `ploi`); `compose:doctor` prints that exact command when it applies.
+- A stack whose panel container has a different name needs `linkPath()` on its class, returning the full path of the panel's directory.
 - Ploi stores its own copy of the compose YAML in its database, and a container deploy started from the panel is likely to write that copy into the linked directory, which is your release tree. Use the panel for logs and status. Deploy from the app.
 
 ## Laravel Forge

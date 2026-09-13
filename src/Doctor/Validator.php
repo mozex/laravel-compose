@@ -300,7 +300,8 @@ class Validator
                 if (count($entries) > 2) {
                     $problems[] = Problem::warning(
                         "The operator link path [{$path}] is a directory with content, not a link. The redeploy leaves it alone and "
-                        .'skips the link; move the content away so the link can take its place.',
+                        .'skips the link; move the content away so the link can take its place. If a hosting panel created it '
+                        ."(Ploi does, as root, with its own docker-compose.yml inside), remove it once: sudo rm -rf {$path}",
                         $stack->name(),
                     );
 

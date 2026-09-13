@@ -58,7 +58,7 @@ class MeilisearchStack extends Stack
     public function build(): bool { return false; }    // compose build --pull first, for build: sections
     public function pull(): bool { return true; }      // compose pull before the sweep (keeps floating tags fresh)
     public function host(): ?string { return null; }   // DOCKER_HOST override for a remote daemon
-    public function linkPath(): ?string { return null; } // null = {link_directory}/{name}; '' = no link
+    public function linkPath(): ?string { return null; } // null = {link_directory}/{name, dashes as underscores}; '' = no link
 }
 ```
 
@@ -109,7 +109,7 @@ volumes:
 
 Put it in the deploy script after the release is built and before anything that talks to a container: first entry of a Composer `deploy:after` script, a Forge deploy-script line after `migrate --force`, an Envoyer "Activate New Release" hook. `--dry-run` prints the plan without running anything.
 
-Panels: set `COMPOSE_LINK_DIRECTORY=/home/{user}/containers` (Ploi's container directory) so the panel shows the stack's logs. The panel may have created that directory as root; the doctor prints the `chown` to run. Never deploy the container from the panel; it would overwrite the compose file in the release tree.
+Panels: set `COMPOSE_LINK_DIRECTORY=/home/{user}/containers` (Ploi's container directory) so the panel shows the stack's logs. The link is named after the stack with dashes as underscores (`acme-search` -> `acme_search`), matching the directory Ploi creates. Ploi setup, once per stack: create a container in the panel with the stack's name, then `sudo rm -rf /home/{user}/containers/acme_search` (the panel creates it as root with its own `docker-compose.yml`, which the link can never replace), then deploy. The panel may also have created the containers directory itself as root; the doctor prints the `chown` to run. A panel container with another name needs `linkPath()` returning its full path. Never deploy the container from the panel; it would overwrite the compose file in the release tree.
 
 Remote daemon: `COMPOSE_DOCKER_HOST=ssh://user@host` or `COMPOSE_DOCKER_CONTEXT=name`, or `host()`/`context()` on one stack (a stack value replaces both globals; a context beside a host wins). The link is skipped and bind mounts do not exist there.
 
