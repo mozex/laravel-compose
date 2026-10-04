@@ -69,10 +69,10 @@ Business sponsors get logo placement in package READMEs. [**See sponsorship tier
 composer require mozex/laravel-compose
 ```
 
-Publish the config file if you want to change the defaults:
+Run the install command if you want to change the defaults. It publishes `config/compose.php`:
 
 ```bash
-php artisan vendor:publish --tag=compose-config
+php artisan compose:install
 ```
 
 The server needs Docker with the Compose plugin, and the user that runs your deploy has to be in the `docker` group. `compose:doctor` tells you when either is missing.

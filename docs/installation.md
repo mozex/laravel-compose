@@ -9,10 +9,10 @@ Install the package with Composer:
 composer require mozex/laravel-compose
 ```
 
-The service provider registers itself through package discovery. Publish the config file when you want to change a default:
+The service provider registers itself through package discovery. Run the install command when you want to change a default:
 
 ```bash
-php artisan vendor:publish --tag=compose-config
+php artisan compose:install
 ```
 
 That writes `config/compose.php`. The [Configuration](./configuration.md) page explains every key.
