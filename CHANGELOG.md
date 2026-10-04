@@ -2,6 +2,14 @@
 
 All notable changes to `laravel-compose` will be documented in this file.
 
+## 1.0.3 - 2026-10-04
+
+### What's Changed
+
+* Improve package setup
+
+**Full Changelog**: https://github.com/mozex/laravel-compose/compare/1.0.2...1.0.3
+
 ## 1.0.2 - 2026-09-13
 
 ### What's Changed
