@@ -1,3 +1,5 @@
+![Laravel Compose](https://raw.githubusercontent.com/mozex/laravel-compose/main/art/banner.png)
+
 # Laravel Compose
 
 [![Latest Version on Packagist](https://img.shields.io/packagist/v/mozex/laravel-compose.svg?style=flat-square)](https://packagist.org/packages/mozex/laravel-compose)
