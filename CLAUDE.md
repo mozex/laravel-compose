@@ -75,7 +75,7 @@ composer test:unit       # pest only
 - `tests/Fixtures/` holds stack layouts: `Plain/` (parent directory with a classed and a class-less stack), `Modules/*/Docker` (module style), `Broken/` (two classes, invalid YAML).
 - `tests/Integration/RealDockerTest.php` runs the real recipe against a real daemon with a throwaway alpine container, `--wait` included. It skips when docker compose or the daemon is missing. `tests/Support/EnvFileTest.php` also round-trips quoting through `docker compose config`.
 - `expectsOutputToContain` matches substrings against single write calls: keep every expected substring unique to one output line.
-- `Process::assertRanInOrder` does not exist on Laravel 11.0; capture the sequence with a closure fake instead.
+- `Process::assertRanInOrder` does not exist on Laravel 12; capture the sequence with a closure fake instead.
 
 ## Development notes
 
