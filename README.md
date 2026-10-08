@@ -1,4 +1,4 @@
-![Laravel Compose](https://raw.githubusercontent.com/mozex/laravel-compose/main/art/banner.png)
+[![Laravel Compose](https://raw.githubusercontent.com/mozex/laravel-compose/main/art/banner.png)](https://mozex.dev/docs/laravel-compose)
 
 # Laravel Compose
 
