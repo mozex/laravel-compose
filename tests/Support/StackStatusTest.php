@@ -46,6 +46,27 @@ it('judges running and healthy from every container', function (): void {
         ->and(StackStatus::fromJson('s', '')->isRunning())->toBeFalse();
 });
 
+it('names running containers of publishing services that hold no published port', function (): void {
+    $bound = ['URL' => '127.0.0.1', 'TargetPort' => 7700, 'PublishedPort' => 7700, 'Protocol' => 'tcp'];
+    $exposedOnly = ['URL' => '', 'TargetPort' => 7700, 'PublishedPort' => 0, 'Protocol' => 'tcp'];
+
+    $oneOff = fn (string $labels): string => json_encode(['Name' => 'stack-search-run-0123456789ab', 'Service' => 'search', 'State' => 'running', 'Labels' => $labels, 'Publishers' => []], JSON_THROW_ON_ERROR);
+
+    $status = StackStatus::fromJson('s', implode("\n", [
+        statusRow('search', 'running', 'healthy', 0, [$exposedOnly]),
+        statusRow('api', 'running', null, 0, [$bound]),
+        statusRow('worker', 'running'),
+        statusRow('init', 'exited'),
+        $oneOff('com.docker.compose.project=stack,com.docker.compose.oneoff=True,com.docker.compose.service=search'),
+    ]));
+    $service = StackStatus::fromJson('s', $oneOff('com.docker.compose.oneoff=False,com.docker.compose.service=search'));
+
+    expect($status->withoutPorts(['search', 'api', 'init']))->toBe(['search'])
+        ->and($status->containers[4]->oneOff)->toBeTrue()
+        ->and($service->withoutPorts(['search']))->toBe(['stack-search-run-0123456789ab'])
+        ->and($status->withoutPorts([]))->toBe([]);
+});
+
 it('describes published ports and tolerates missing fields', function (): void {
     $status = StackStatus::fromJson('s', statusRow('app', 'running', null, 0, [
         ['URL' => '127.0.0.1', 'TargetPort' => 7700, 'PublishedPort' => 7701, 'Protocol' => 'tcp'],

@@ -182,7 +182,8 @@ class Validator
         foreach ($compose->publicPublishes($stack->interpolationValues()) as $publish) {
             $problems[] = Problem::warning(
                 "Publishes on every interface: {$publish}. Docker bypasses UFW and similar host firewalls, so bind "
-                .'to 127.0.0.1 or a private address unless the port must be public.',
+                .'to 127.0.0.1 unless the port must be public. For access from another machine, let a VPN forward '
+                .'to loopback (tailscale serve) rather than publishing on its address, which may not exist yet when Docker starts at boot.',
                 $name,
             );
         }

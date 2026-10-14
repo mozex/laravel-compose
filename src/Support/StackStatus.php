@@ -80,6 +80,30 @@ class StackStatus
     }
 
     /**
+     * Running containers of the given services that publish no port. Docker
+     * binds a container's publishes all together or not at all, and one that
+     * fails to bind (an address that is not on the host yet, say, at boot)
+     * can end up running with none of them: alive and healthy inside, and
+     * unreachable from the host. A `compose run` container is left out: it
+     * publishes nothing by design.
+     *
+     * @param  list<string>  $services  The services whose compose entries declare ports
+     * @return list<string>
+     */
+    public function withoutPorts(array $services): array
+    {
+        $names = [];
+
+        foreach ($this->containers as $container) {
+            if ($container->isRunning() && ! $container->oneOff && $container->ports === [] && in_array($container->service, $services, true)) {
+                $names[] = $container->name;
+            }
+        }
+
+        return $names;
+    }
+
+    /**
      * Running, and every container with a healthcheck reports healthy.
      */
     public function isHealthy(): bool

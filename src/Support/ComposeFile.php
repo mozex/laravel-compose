@@ -226,6 +226,28 @@ class ComposeFile
     }
 
     /**
+     * Services that declare at least one port publish. A service on the host
+     * network is left out: Docker discards its `ports` entries, so it never
+     * has a published port to miss.
+     *
+     * @return list<string>
+     */
+    public function publishingServices(): array
+    {
+        $services = [];
+
+        foreach ($this->services() as $name => $service) {
+            $ports = $service['ports'] ?? [];
+
+            if (is_array($ports) && $ports !== [] && ($service['network_mode'] ?? null) !== 'host') {
+                $services[] = (string) $name;
+            }
+        }
+
+        return $services;
+    }
+
+    /**
      * Port publishes that listen on every interface. A publish without a host
      * address is public on any machine whose firewall Docker bypasses, which is
      * most of them. Entries read `service: published`.

@@ -97,7 +97,7 @@ volumes:
     meilisearch-data:
 ```
 
-- Give every service a `container_name`. Publish on `127.0.0.1` (or a private address), never `0.0.0.0` or a bare `7700:7700`.
+- Give every service a `container_name`. Publish on `127.0.0.1`, never `0.0.0.0` or a bare `7700:7700`. Never publish on a VPN or tailnet address either: at boot Docker can start before that address exists, the bind fails, and the container doesn't start at all, loopback publish included. Let the VPN forward to loopback instead (`tailscale serve --bg --tcp=7700 tcp://127.0.0.1:7700`).
 - Project and container names are global on the host. When several apps share a server, prefix both with the app (`shop-meilisearch`); `compose:make` writes `{app}-{stack}` names by default. `container_name: ${COMPOSE_PROJECT_NAME}-meilisearch` works too; the sweep resolves `${VAR}` in names before `docker rm -f`.
 - Add a healthcheck; `wait()`, `compose:status`, and the health check read it. Probe `127.0.0.1`, never `localhost` (it can resolve to `::1` inside the container while the service listens on IPv4).
 - Prefer named volumes. A bind mount of a stack-local file pins the container to the release directory and cannot work on a remote daemon.
@@ -132,7 +132,7 @@ $stack->exec('meilisearch', ['ls', '/meili_data']);   // maintenance inside a co
 $stack->down();
 ```
 
-Health: `Health::checks([StacksCheck::new()])` with spatie/laravel-health. Events: `StackRedeployingEvent`, `StackSkippedEvent`, `StackRedeployedEvent`, `StackRedeployFailedEvent` (`step` is `compose`, `env`, `build`, or `up`; `reason()` has the message).
+Health: `Health::checks([StacksCheck::new()])` with spatie/laravel-health. It fails a stack that is down, and one whose container runs without the ports its compose file publishes (a start whose bind failed, then a hand `docker start`). A restart may not bring those ports back; recreate it with `compose:down {stack}`, then `compose:redeploy {stack}`. Events: `StackRedeployingEvent`, `StackSkippedEvent`, `StackRedeployedEvent`, `StackRedeployFailedEvent` (`step` is `compose`, `env`, `build`, or `up`; `reason()` has the message).
 
 ## Testing
 

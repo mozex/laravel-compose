@@ -17,6 +17,7 @@ class ContainerStatus
         public readonly string $status,
         public readonly int $exitCode,
         public readonly array $ports = [],
+        public readonly bool $oneOff = false,
     ) {}
 
     /**
@@ -54,7 +55,23 @@ class ContainerStatus
             status: is_string($row['Status'] ?? null) ? $row['Status'] : '',
             exitCode: (int) ($row['ExitCode'] ?? 0),
             ports: array_values(array_unique($ports)),
+            oneOff: self::isOneOff($row['Labels'] ?? null),
         );
+    }
+
+    /**
+     * A `compose run` container, which `ps --all` lists under the service it
+     * runs and which publishes nothing unless run with `--service-ports`.
+     * Compose prints labels as one comma-joined string; releases before 2.21
+     * print none, so a run container there reads as an ordinary one.
+     */
+    protected static function isOneOff(mixed $labels): bool
+    {
+        if (is_array($labels)) {
+            return strcasecmp((string) ($labels['com.docker.compose.oneoff'] ?? ''), 'true') === 0;
+        }
+
+        return is_string($labels) && preg_match('/(^|,)com\.docker\.compose\.oneoff=true(,|$)/i', $labels) === 1;
     }
 
     public function isRunning(): bool

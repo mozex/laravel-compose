@@ -141,6 +141,30 @@ it('flags publishes that listen on every interface', function (): void {
         ->toBe(['caddy: ${GATEWAY_TLS_PORT:-8443}:443']);
 });
 
+it('lists the services that publish ports, leaving out the host network', function (): void {
+    $directory = temporaryDirectory();
+    File::put($directory.'/compose.yaml', implode("\n", [
+        'services:',
+        '    search:',
+        '        image: alpine',
+        '        ports:',
+        "            - '127.0.0.1:7700:7700'",
+        '    worker:',
+        '        image: alpine',
+        '    empty:',
+        '        image: alpine',
+        '        ports: []',
+        '    host:',
+        '        image: alpine',
+        '        network_mode: host',
+        '        ports:',
+        "            - '8080:8080'",
+    ]));
+
+    expect(ComposeFile::load($directory.'/compose.yaml')->publishingServices())->toBe(['search'])
+        ->and(ComposeFile::load(fixturesPath('Modules/Gateway/Docker/docker-compose.yml'))->publishingServices())->toBe(['guacamole', 'caddy']);
+});
+
 it('resolves the host address through the stack environment before judging a publish', function (): void {
     $directory = temporaryDirectory();
     File::put($directory.'/compose.yaml', implode("\n", [

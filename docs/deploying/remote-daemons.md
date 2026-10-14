@@ -27,7 +27,7 @@ A single stack can override through `host()` or `context()`, so one app can run 
 
 - **The operator link is skipped.** A link on the web server would point at a directory the remote daemon can't see.
 - **Bind mounts don't exist there.** `./Caddyfile:/etc/caddy/Caddyfile` refers to a path on the machine running the command, and the remote daemon has no such file. The doctor warns about every bind mount in a stack with a remote daemon. Use named volumes, or bake the file into an image.
-- **The app reaches the container over the network.** Publish the port on the private interface of the Docker host, never on `0.0.0.0`. Docker bypasses host firewalls, so a public publish is a public port.
+- **The app reaches the container over the network.** Never publish on `0.0.0.0`: Docker bypasses host firewalls, so a public publish is a public port. A private network interface of the Docker host works if it's configured before Docker starts, like a second network card. A VPN address doesn't: publish on loopback and let the VPN forward to it, as in [Publish on loopback](../stacks/compose-files.md#publish-on-loopback).
 - **The compose file and env file stay local.** Compose reads both on the machine running the command and sends the resolved configuration to the daemon. Secrets travel over the SSH or TLS connection you configured, not through a file on the remote host.
 
 ## Checking the connection

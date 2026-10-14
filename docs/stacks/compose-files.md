@@ -41,7 +41,7 @@ A container name can use variables. `container_name: ${COMPOSE_PROJECT_NAME}-mei
 
 A publish without an address (`7700:7700`) listens on every interface, and Docker writes its own iptables rules that bypass UFW and similar host firewalls. The port answers from the internet no matter what `ufw status` says. Binding the address is the boundary; the firewall isn't. The doctor warns about every publish that listens everywhere.
 
-When an app on another machine needs the port, bind the private interface (a VPN or tailnet address), never `0.0.0.0`.
+When an app on another machine needs the port, keep the publish on loopback and let the VPN forward it. Publishing on a VPN address ties the container's start to that interface. At boot Docker can start before the VPN has assigned its address, the bind fails, and the container doesn't start at all, its loopback publish included. With Tailscale, `tailscale serve --bg --tcp=7700 tcp://127.0.0.1:7700` forwards the tailnet port to loopback, comes back after a reboot, and stays under the tailnet's access rules. Never fall back to `0.0.0.0`.
 
 ## Add a healthcheck
 

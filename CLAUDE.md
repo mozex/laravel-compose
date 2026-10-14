@@ -16,17 +16,17 @@ src/
   Actions/RedeployStack.php The recipe (env write, link, build?, pull, rm -f sweep, up). Order is load-bearing, see the docblock.
   Compose.php               Manager behind the facade: stacks(), stack(), register(), redeploy(), validate(), docker().
   Doctor/                   Validator + Report/Problem/Severity behind compose:doctor and Compose::validate().
-  Support/ComposeFile.php   Symfony YAML parse: name, container names, required ${VAR}s, profiles, bind mounts, public publishes, interpolation.
+  Support/ComposeFile.php   Symfony YAML parse: name, container names, required ${VAR}s, profiles, bind mounts, public publishes, publishing services, interpolation.
   Support/EnvFile.php       Env path from config, hand-written file detection, parse() with the quoting rules quote() writes,
                             0600 perms, refuses newlines.
   Support/OperatorLink.php  Symlink/junction refresh at {link_directory}/{name with _ for -}; never fatal to a rollout.
-  Support/StackStatus.php   Parses `compose ps --format json` (NDJSON and array forms) into ContainerStatus rows.
-  Support/ContainerStatus.php One `ps` row: name, service, state, health, exit code, published ports; isRunning()/isFinished()/isHealthy().
+  Support/StackStatus.php   Parses `compose ps --format json` (NDJSON and array forms) into ContainerStatus rows; withoutPorts() names running containers that lost every publish.
+  Support/ContainerStatus.php One `ps` row: name, service, state, health, exit code, published ports, one-off (`compose run`) flag; isRunning()/isFinished()/isHealthy().
   Support/NamespaceResolver Directory -> namespace via Composer's PSR-4 map (used by compose:make).
   Enums/RedeployResult.php  Redeployed | Skipped | Failed, returned per stack by Compose::redeploy().
   Exceptions/ComposeException.php  The one exception class, named static factories per failure.
   Commands/                 compose:redeploy, status, logs, down, doctor, make.
-  Health/StacksCheck.php    spatie/laravel-health check (optional dependency, only loaded when used).
+  Health/StacksCheck.php    spatie/laravel-health check (optional dependency, only loaded when used). Fails down stacks and running containers with none of their declared publishes bound (a failed boot-time bind, then a hand docker start).
   Testing/ComposeFake.php   Compose::fake() with assertRedeployed/assertSkipped/assertNotRedeployed/assertNothingRedeployed.
   Events/                   StackRedeployingEvent, StackSkippedEvent, StackRedeployedEvent, StackRedeployFailedEvent.
 resources/stubs/            Files written by compose:make.
