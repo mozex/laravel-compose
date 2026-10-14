@@ -2,6 +2,16 @@
 
 All notable changes to `laravel-compose` will be documented in this file.
 
+## 1.1.1 - 2026-10-14
+
+### What's Changed
+
+* `StacksCheck` now fails a stack whose running container holds none of the ports its compose file publishes (meta `no ports`). Docker publishes all or nothing: a container whose bind failed at start (an address not on the host yet at boot) and was then started by hand runs healthy with no ports, and the check used to report it as running.
+* `compose run` containers are left out of that check, since they publish nothing by design (needs Compose 2.21+ for the label).
+* The docs, the doctor's warning and the Boost skill now say to keep publishes on loopback and let a VPN forward to them (`tailscale serve --bg --tcp=7700 tcp://127.0.0.1:7700`) instead of publishing on the VPN address.
+
+**Full Changelog**: https://github.com/mozex/laravel-compose/compare/1.1.0...1.1.1
+
 ## 1.1.0 - 2026-10-08
 
 ### What's Changed
