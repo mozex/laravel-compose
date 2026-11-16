@@ -2,6 +2,19 @@
 
 All notable changes to `laravel-compose` will be documented in this file.
 
+## 1.2.0 - 2026-11-16
+
+### What's Changed
+
+* A stack whose `build()` returns true is now built once per redeploy. `compose:redeploy` used to run `compose build --pull` and then pass `--build` to `up`, which built the image a second time after the old containers were removed, with nothing serving and under the `up` timeout instead of `buildTimeout()`. `up` now starts the image the build step made.
+* The build step now runs after the pull and before the old containers are removed. `pull --ignore-buildable` still pulls an image name that a service without `build:` shares with a building one, so building last keeps the fresh build on that name.
+* Compose still builds an image that's missing at `up`, so a stack with a `build:` section comes up on its first deploy whatever `build()` returns.
+* `compose:doctor` warns about pull policies that undo the build step in a stack whose `build()` returns true: `pull_policy: always` or `refresh` on a service using an image the stack builds (`up` would start the registry copy), and `pull_policy: build` on a building service (`up` would build again after the old containers are removed).
+
+If a service in a building stack sets `pull_policy: always` or `refresh` on an image the stack builds, `up` now follows that policy and starts the registry image; `--build` used to override it. Run `php artisan compose:doctor` to find these and remove the `pull_policy`. If you bound your own subclass of `RedeployStack` and rely on `upArguments()` returning `--build`, add it in your override.
+
+**Full Changelog**: https://github.com/mozex/laravel-compose/compare/1.1.1...1.2.0
+
 ## 1.1.1 - 2026-10-14
 
 ### What's Changed
