@@ -67,7 +67,7 @@ You only override what differs from the default.
 | `interpolationValues()` | shell, then the env file, then `COMPOSE_PROJECT_NAME` | What `${VAR}` in the compose file resolves against, the way compose resolves it. |
 | `enabled()` | `true` | Whether this host manages the stack. Read a config value here. |
 | `profiles()` | `[]` | Compose profiles to activate, such as a production-only TLS sidecar. |
-| `build()` | `false` | Run `compose build --pull` first and pass `--build` to `up`. |
+| `build()` | `false` | Run `compose build --pull` after the pull and before the sweep. `up` then starts that image. |
 | `pull()` | `true` | Run `compose pull` before the sweep. |
 | `wait()` | `null` | Seconds for `up --wait --wait-timeout`. Null returns as soon as the containers are created. |
 | `timeout()` | config `timeouts.up` (120) | Seconds allowed for `up`. Raised automatically to `wait() + 30` when waiting. |

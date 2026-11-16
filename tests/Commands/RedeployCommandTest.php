@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Illuminate\Process\PendingProcess;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Process;
 use Mozex\Compose\DiscoveredStack;
@@ -102,13 +103,25 @@ it('lists a stack whose environment() throws in the dry run and carries on', fun
     Process::assertNothingRan();
 });
 
-it('includes the build step in a dry run for building stacks', function (): void {
+it('includes the build step in a dry run for building stacks, and no build at up', function (): void {
     Process::fake();
     Compose::register(fakeStack(['name' => 'built', 'build' => true, 'pull' => false, 'containers' => []]));
 
     artisan('compose:redeploy', ['stack' => 'built', '--dry-run' => true])
         ->expectsOutputToContain('build --pull')
-        ->expectsOutputToContain('up --detach --remove-orphans --build')
+        ->expectsOutputToContain('up --detach --remove-orphans')
+        ->doesntExpectOutputToContain('--build')
         ->doesntExpectOutputToContain('rm -f')
         ->assertSuccessful();
+});
+
+it('plans the pull before the build, the way the redeploy runs them', function (): void {
+    Process::fake();
+    Compose::register(fakeStack(['name' => 'built', 'build' => true, 'containers' => []]));
+
+    expect(Artisan::call('compose:redeploy', ['stack' => 'built', '--dry-run' => true]))->toBe(0);
+
+    $output = Artisan::output();
+
+    expect(strpos($output, 'pull --ignore-buildable'))->toBeInt()->toBeLessThan(strpos($output, 'build --pull'));
 });

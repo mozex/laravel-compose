@@ -230,6 +230,43 @@ it('renders booleans and enums the way the env file will before interpolating', 
     expect(app(Validator::class)->run(withDaemon: false)->warnings())->toBe([]);
 });
 
+it('warns when a pull policy undoes the build step of a building stack', function (): void {
+    $compose = fn (string $name): string => implode("\n", [
+        "name: {$name}",
+        'services:',
+        '    app:',
+        '        image: ghcr.io/acme/app',
+        '        build: .',
+        '        pull_policy: always',
+        '    worker:',
+        '        image: ghcr.io/acme/app:latest',
+        '        pull_policy: refresh',
+        '    rebuilt:',
+        '        build: .',
+        '        pull_policy: ${REBUILD_POLICY:-build}',
+        '    nameless:',
+        '        build: .',
+        '        pull_policy: always',
+        '    scheduled:',
+        '        image: ghcr.io/acme/app',
+        '        pull_policy: daily',
+        '    registry:',
+        '        image: alpine',
+        '        pull_policy: always',
+        '',
+    ]);
+    Compose::register(fakeStack(['name' => 'building', 'build' => true, 'compose' => $compose('building')]));
+    Compose::register(fakeStack(['name' => 'prebuilt', 'compose' => $compose('prebuilt')]));
+
+    $warnings = app(Validator::class)->run(withDaemon: false)->warnings();
+
+    expect($warnings)->toHaveCount(3)
+        ->and(array_map(fn ($problem) => $problem->stack, $warnings))->toBe(['building', 'building', 'building'])
+        ->and($warnings[0]->message)->toContain('The service [app] sets pull_policy: always on [ghcr.io/acme/app:latest], an image this stack builds')
+        ->and($warnings[1]->message)->toContain('The service [worker] sets pull_policy: refresh on [ghcr.io/acme/app:latest]')
+        ->and($warnings[2]->message)->toContain('The service [rebuilt] sets pull_policy: build');
+});
+
 it('notes disabled stacks and the master switch', function (): void {
     Compose::register(fakeStack(['name' => 'off', 'enabled' => false]));
     config()->set('compose.enabled', false);

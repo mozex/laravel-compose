@@ -26,8 +26,8 @@ A directory with a compose file and no class works too. It's registered with an 
 
 1. Write the env file. Compose reads it at `up` time, so it has to exist first.
 2. Refresh the operator link, if a link directory is configured. A failure here is reported and printed, never fatal.
-3. Build, when the stack says so.
-4. `docker compose pull`, result ignored. `up` never refreshes a tag it already holds, so a floating tag would freeze at the first deploy without this. It runs before the sweep so the old container keeps serving during the download.
+3. `docker compose pull`, result ignored. `up` never refreshes a tag it already holds, so a floating tag would freeze at the first deploy without this. It runs before the sweep so the old container keeps serving during the download.
+4. Build, when the stack says so. It also runs before the sweep, so the old container keeps serving while it builds.
 5. `docker rm -f` on the fixed container names, result ignored. A container created under another project context (a renamed directory, an older layout) is invisible to this project's `up` and wedges it with a name conflict.
 6. `docker compose up --detach --remove-orphans`, with `--wait` when the stack asks for it.
 

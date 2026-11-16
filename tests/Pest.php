@@ -138,7 +138,9 @@ function fakeStack(array $overrides = []): Stack
 
         public function build(): bool
         {
-            return $this->overrides['build'] ?? false;
+            $build = $this->overrides['build'] ?? false;
+
+            return $build instanceof Closure ? $build() : $build;
         }
 
         public function pull(): bool

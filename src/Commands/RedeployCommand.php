@@ -98,12 +98,12 @@ class RedeployCommand extends Command
     {
         $commands = [];
 
-        if ($stack->build()) {
-            $commands[] = $docker->command($docker->composeArguments($stack, ['build', '--pull']), $stack);
-        }
-
         if ($stack->pull()) {
             $commands[] = $docker->command($docker->composeArguments($stack, ['pull', '--ignore-buildable', '--quiet']), $stack);
+        }
+
+        if ($stack->build()) {
+            $commands[] = $docker->command($docker->composeArguments($stack, ['build', '--pull']), $stack);
         }
 
         if ($stack->containerNames() !== []) {

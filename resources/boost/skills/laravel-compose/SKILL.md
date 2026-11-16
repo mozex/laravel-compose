@@ -55,7 +55,7 @@ class MeilisearchStack extends Stack
 
     public function profiles(): array { return []; }   // compose profiles to activate, e.g. ['tls']
     public function wait(): ?int { return 60; }        // up --wait --wait-timeout 60; null = don't wait
-    public function build(): bool { return false; }    // compose build --pull first, for build: sections
+    public function build(): bool { return false; }    // compose build --pull before the sweep, for build: sections
     public function pull(): bool { return true; }      // compose pull before the sweep (keeps floating tags fresh)
     public function host(): ?string { return null; }   // DOCKER_HOST override for a remote daemon
     public function linkPath(): ?string { return null; } // null = {link_directory}/{name, dashes as underscores}; '' = no link
@@ -105,7 +105,7 @@ volumes:
 
 ## Deploying
 
-`php artisan compose:redeploy` writes the env file (a stack with an empty `environment()` leaves an existing file alone), refreshes the operator link, builds if asked, pulls (result ignored), force-removes the fixed container names (result ignored), then runs `compose up --detach --remove-orphans` (`--wait` when the stack waits). A step past its timeout counts as failed, nothing worse. Exit 1 if any stack failed. The order is deliberate; do not reorder or "simplify" it.
+`php artisan compose:redeploy` writes the env file (a stack with an empty `environment()` leaves an existing file alone), refreshes the operator link, pulls (result ignored), builds if asked, force-removes the fixed container names (result ignored), then runs `compose up --detach --remove-orphans` (`--wait` when the stack waits; never `--build`, so no service using a built image may set `pull_policy: always` or `refresh`, and no building service `pull_policy: build`; `compose:doctor` warns). A step past its timeout counts as failed, nothing worse. Exit 1 if any stack failed. The order is deliberate; do not reorder or "simplify" it.
 
 Put it in the deploy script after the release is built and before anything that talks to a container: first entry of a Composer `deploy:after` script, a Forge deploy-script line after `migrate --force`, an Envoyer "Activate New Release" hook. `--dry-run` prints the plan without running anything.
 

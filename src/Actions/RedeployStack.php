@@ -25,14 +25,20 @@ use Throwable;
  *
  * 1. Write the env file. Compose reads it at `up`, so it has to land first.
  * 2. Refresh the operator link. Non-fatal: it is reported and printed.
- * 3. `compose build --pull` when the stack builds its own images.
- * 4. `compose pull`, result ignored. `up` never refreshes a tag it already
+ * 3. `compose pull`, result ignored. `up` never refreshes a tag it already
  *    has, and a registry outage should still redeploy the local image. It
  *    runs before the sweep so the old container serves during the download.
+ * 4. `compose build --pull` when the stack builds its own images. After the
+ *    pull, so the build is the last writer of a tag a service without a
+ *    `build:` section shares; `--ignore-buildable` does not skip that one.
+ *    Before the sweep, so the old container serves during the build.
  * 5. `docker rm -f` on the fixed container names, result ignored. A container
  *    created under a different project context is invisible to `up` and
  *    wedges it with a name conflict; a missing container is the normal case.
  * 6. `compose up --detach --remove-orphans`, with --wait when the stack asks.
+ *    Never `--build`: it would build again after the sweep, with nothing
+ *    serving, under the `up` timeout. Never `--no-build` either: `up` still
+ *    builds an image that is missing, as on a first deploy.
  *
  * A step that runs past its timeout counts as a failed step: ignored for
  * pull and rm, fatal for build and up. A compose file that cannot be read or
@@ -78,6 +84,10 @@ class RedeployStack
 
         $this->refreshLink($stack, $output);
 
+        if ($stack->pull()) {
+            $this->docker->compose($stack, ['pull', '--ignore-buildable', '--quiet'], $stack->pullTimeout() ?? $this->docker->timeout('pull', 300), $output);
+        }
+
         if ($stack->build()) {
             $build = $this->docker->compose($stack, ['build', '--pull'], $stack->buildTimeout() ?? $this->docker->timeout('build', 600), $output);
 
@@ -86,10 +96,6 @@ class RedeployStack
 
                 return RedeployResult::Failed;
             }
-        }
-
-        if ($stack->pull()) {
-            $this->docker->compose($stack, ['pull', '--ignore-buildable', '--quiet'], $stack->pullTimeout() ?? $this->docker->timeout('pull', 300), $output);
         }
 
         $names = $stack->containerNames();
@@ -117,10 +123,6 @@ class RedeployStack
     public function upArguments(Stack $stack): array
     {
         $arguments = ['up', '--detach', '--remove-orphans'];
-
-        if ($stack->build()) {
-            $arguments[] = '--build';
-        }
 
         $wait = $stack->wait();
 

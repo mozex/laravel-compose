@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Process;
 use Mozex\Compose\Actions\RedeployStack;
 use Mozex\Compose\Enums\RedeployResult;
 use Mozex\Compose\Facades\Compose;
+use Mozex\Compose\Stack;
 
 use function Pest\Laravel\artisan;
 
@@ -65,8 +66,58 @@ afterEach(function (): void {
     if (isset($this->name)) {
         Process::timeout(60)->run(['docker', 'rm', '-f', $this->name.'-app']);
         Process::timeout(60)->run(['docker', 'compose', '--project-name', $this->name, 'down', '--remove-orphans', '--volumes']);
+        // Built images carry the run's label, so the replaced first build,
+        // left dangling by the second, goes too.
+        Process::timeout(60)->run(['docker', 'image', 'prune', '--all', '--force', '--filter', 'label=laravel-compose.it='.$this->name]);
     }
 });
+
+/**
+ * A stack whose one service is built from a Dockerfile in the stack
+ * directory. The label tells which build the running container came from.
+ */
+function buildingStack(string $name, bool $build, string $mark): Stack
+{
+    $stack = fakeStack([
+        'name' => $name,
+        'build' => $build,
+        'wait' => 30,
+        'compose' => implode("\n", [
+            "name: {$name}",
+            'services:',
+            '    app:',
+            '        build: .',
+            '        container_name: ${COMPOSE_PROJECT_NAME}-app',
+            '        healthcheck:',
+            '            test: ["CMD", "true"]',
+            '            interval: 2s',
+            '            timeout: 2s',
+            '            retries: 3',
+            '            start_period: 1s',
+            '',
+        ]),
+    ]);
+
+    markBuild($stack, $mark);
+
+    return $stack;
+}
+
+function markBuild(Stack $stack, string $mark): void
+{
+    File::put($stack->directory().'/Dockerfile', implode("\n", [
+        'FROM alpine:3',
+        "LABEL laravel-compose.it={$stack->name()}",
+        "LABEL laravel-compose.mark={$mark}",
+        'CMD ["sleep", "120"]',
+        '',
+    ]));
+}
+
+function runningMark(string $container): string
+{
+    return trim(Process::timeout(30)->run(['docker', 'inspect', '--format', '{{index .Config.Labels "laravel-compose.mark"}}', $container])->output());
+}
 
 it('redeploys, reports status and logs, and tears down a real stack', function (): void {
     Compose::register($this->stack);
@@ -107,4 +158,26 @@ it('redeploys, reports status and logs, and tears down a real stack', function (
 
     expect($stack->down(volumes: true)->successful())->toBeTrue()
         ->and($stack->status()->isEmpty())->toBeTrue();
+});
+
+it('starts the image the build step just made on every redeploy', function (): void {
+    $stack = buildingStack($this->name, build: true, mark: 'first');
+
+    expect(app(RedeployStack::class)->execute($stack))->toBe(RedeployResult::Redeployed)
+        ->and(runningMark($this->name.'-app'))->toBe('first');
+
+    // A changed Dockerfile is built before the sweep and is what `up` starts.
+    markBuild($stack, 'second');
+
+    expect(app(RedeployStack::class)->execute($stack))->toBe(RedeployResult::Redeployed)
+        ->and(runningMark($this->name.'-app'))->toBe('second')
+        ->and($stack->status()->isHealthy())->toBeTrue();
+});
+
+it('still builds a missing image at up for a stack that does not build', function (): void {
+    $stack = buildingStack($this->name, build: false, mark: 'first');
+
+    expect(app(RedeployStack::class)->execute($stack))->toBe(RedeployResult::Redeployed)
+        ->and(runningMark($this->name.'-app'))->toBe('first')
+        ->and($stack->status()->isHealthy())->toBeTrue();
 });

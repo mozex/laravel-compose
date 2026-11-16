@@ -89,23 +89,42 @@ it('activates the compose profiles on the way up and honours per-stack knobs', f
     Process::assertNotRan(fn (PendingProcess $process): bool => in_array('rm', $process->command, true));
 });
 
-it('builds images first for a stack that asks to, and fails on a broken build', function (): void {
+it('builds once, after the pull and before the sweep, and lets a plain up start the build', function (): void {
+    $sequence = [];
+    Process::fake(function (PendingProcess $process) use (&$sequence) {
+        $sequence[] = [$process->command, $process->timeout];
+
+        return Process::result();
+    });
+    $asked = 0;
+    $stack = fakeStack(['build' => function () use (&$asked): bool {
+        $asked++;
+
+        return true;
+    }, 'containers' => ['app']]);
+    $prefix = composePrefix($stack);
+
+    expect(app(RedeployStack::class)->execute($stack))->toBe(RedeployResult::Redeployed)
+        ->and($sequence)->toBe([
+            [[...$prefix, 'pull', '--ignore-buildable', '--quiet'], 300],
+            [[...$prefix, 'build', '--pull'], 600],
+            [['docker', 'rm', '-f', 'app'], 30],
+            [[...$prefix, 'up', '--detach', '--remove-orphans'], 120],
+        ])
+        ->and($asked)->toBe(1);
+});
+
+it('fails a broken build before the sweep, so the old containers keep serving', function (): void {
     Process::fake(fn (PendingProcess $process) => in_array('build', $process->command, true) ? Process::result(exitCode: 1) : Process::result());
     Event::fake();
-    $stack = fakeStack(['build' => true]);
-    $prefix = composePrefix($stack);
+    $stack = fakeStack(['build' => true, 'containers' => ['app']]);
 
     expect(app(RedeployStack::class)->execute($stack))->toBe(RedeployResult::Failed);
 
-    Process::assertRan(fn (PendingProcess $process): bool => $process->command === [...$prefix, 'build', '--pull'] && $process->timeout === 600);
+    Process::assertRan(fn (PendingProcess $process): bool => $process->command === [...composePrefix($stack), 'build', '--pull'] && $process->timeout === 600);
+    Process::assertNotRan(fn (PendingProcess $process): bool => in_array('rm', $process->command, true));
     Process::assertNotRan(fn (PendingProcess $process): bool => in_array('up', $process->command, true));
     Event::assertDispatched(StackRedeployFailedEvent::class, fn (StackRedeployFailedEvent $event): bool => $event->step === 'build');
-
-    Process::fake();
-
-    app(RedeployStack::class)->execute($stack);
-
-    Process::assertRan(fn (PendingProcess $process): bool => $process->command === [...$prefix, 'up', '--detach', '--remove-orphans', '--build']);
 });
 
 it('reports a failed compose up while ignoring the pull and sweep exit codes', function (): void {

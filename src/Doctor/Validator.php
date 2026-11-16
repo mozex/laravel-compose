@@ -10,6 +10,7 @@ use Mozex\Compose\Docker;
 use Mozex\Compose\Exceptions\ComposeException;
 use Mozex\Compose\Stack;
 use Mozex\Compose\StackRegistry;
+use Mozex\Compose\Support\ComposeFile;
 use Mozex\Compose\Support\EnvFile;
 use Mozex\Compose\Support\OperatorLink;
 use Throwable;
@@ -188,6 +189,10 @@ class Validator
             );
         }
 
+        if ($stack->build()) {
+            $this->checkBuildPullPolicies($stack, $compose, $problems);
+        }
+
         if (! $stack->enabled()) {
             $problems[] = Problem::info('Disabled on this host; redeploy skips it.', $name);
         }
@@ -217,6 +222,29 @@ class Validator
 
         if ($withDaemon && $missing === []) {
             $this->checkComposeConfig($stack, $handWritten ? null : $rendered, $problems);
+        }
+    }
+
+    /**
+     * The build step builds every `build:` service before the sweep, and `up`
+     * then starts that image. Some pull policies undo it inside `up`: `always`
+     * and `refresh` pull the registry copy over the fresh build, from the
+     * building service or from another one naming the same image, and `build`
+     * builds again after the sweep, with nothing serving.
+     *
+     * @param  list<Problem>  $problems
+     */
+    protected function checkBuildPullPolicies(Stack $stack, ComposeFile $compose, array &$problems): void
+    {
+        foreach ($compose->pullPoliciesOverBuild($stack->interpolationValues()) as $found) {
+            $problems[] = Problem::warning(
+                $found['policy'] === 'build'
+                    ? "The service [{$found['service']}] sets pull_policy: build, so `up` builds its image a second time after the old "
+                        .'containers are removed, with nothing serving. build() already builds it before the sweep; remove pull_policy.'
+                    : "The service [{$found['service']}] sets pull_policy: {$found['policy']} on [{$found['image']}], an image this stack builds, "
+                        .'so `up` pulls the registry copy over the build and starts that instead. Remove pull_policy from the service.',
+                $stack->name(),
+            );
         }
     }
 

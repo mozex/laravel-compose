@@ -201,6 +201,52 @@ class ComposeFile
     }
 
     /**
+     * Services whose `pull_policy` makes `up` replace the image the build step
+     * made. `build` on a service with a `build:` section builds it again.
+     * `always` and `refresh` (no window, so always due) pull the registry copy
+     * over it, whether on the building service itself or on another service
+     * that names the same image; a service with no `image:` is never pulled.
+     * Compose matches policies case-sensitively, and so does this.
+     *
+     * @param  array<string, string>  $environment  Values used to resolve `${VAR}` in policies and image names
+     * @return list<array{service: string, policy: string, image: string|null}>
+     */
+    public function pullPoliciesOverBuild(array $environment = []): array
+    {
+        $built = [];
+
+        foreach ($this->services() as $service) {
+            $image = $this->imageOf($service, $environment);
+
+            if (array_key_exists('build', $service) && $image !== null) {
+                $built[] = $image;
+            }
+        }
+
+        $found = [];
+
+        foreach ($this->services() as $name => $service) {
+            $policy = $service['pull_policy'] ?? null;
+
+            if (! is_string($policy) || $policy === '') {
+                continue;
+            }
+
+            $policy = self::interpolate($policy, $environment);
+            $image = $this->imageOf($service, $environment);
+
+            $rebuilds = $policy === 'build' && array_key_exists('build', $service);
+            $pulls = in_array($policy, ['always', 'refresh'], true) && $image !== null && in_array($image, $built, true);
+
+            if ($rebuilds || $pulls) {
+                $found[] = ['service' => (string) $name, 'policy' => $policy, 'image' => $image];
+            }
+        }
+
+        return $found;
+    }
+
+    /**
      * Host-side sources of bind mounts, the paths that only exist on the
      * machine the compose file lives on.
      *
@@ -474,6 +520,32 @@ class ComposeFile
         foreach ($value as $item) {
             $this->eachString($item, $callback);
         }
+    }
+
+    /**
+     * A service's `image:`, resolved, with the implied `:latest` tag written
+     * out so `acme/app` and `acme/app:latest` compare equal.
+     *
+     * @param  array<string, mixed>  $service
+     * @param  array<string, string>  $environment
+     */
+    protected function imageOf(array $service, array $environment): ?string
+    {
+        $image = $service['image'] ?? null;
+
+        if (! is_string($image) || $image === '') {
+            return null;
+        }
+
+        $image = self::interpolate($image, $environment);
+
+        if ($image === '') {
+            return null;
+        }
+
+        $name = substr($image, (int) strrpos($image, '/'));
+
+        return str_contains($name, ':') || str_contains($image, '@') ? $image : $image.':latest';
     }
 
     protected function bindMountSource(mixed $volume): ?string

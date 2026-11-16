@@ -133,6 +133,37 @@ it('reports profiles, build steps, and bind mounts', function (): void {
         ->and($windows->bindMounts())->toBe(['C:\\data', '~/home']);
 });
 
+it('finds the pull policies that replace a built image at up', function (): void {
+    $directory = temporaryDirectory();
+    File::put($directory.'/compose.yaml', implode("\n", [
+        'services:',
+        '    app:',
+        '        image: ${IMAGE:-acme/app}',
+        '        build: .',
+        '        pull_policy: ${POLICY:-always}',
+        '    worker:',
+        '        image: acme/app:latest',
+        '        pull_policy: always',
+        '    other:',
+        '        image: acme/other',
+        '        pull_policy: always',
+        '    shouting:',
+        '        build: .',
+        '        pull_policy: Build',
+        '    plain:',
+        '        build: .',
+        '',
+    ]));
+    $compose = ComposeFile::load($directory.'/compose.yaml');
+
+    expect($compose->pullPoliciesOverBuild())->toBe([
+        ['service' => 'app', 'policy' => 'always', 'image' => 'acme/app:latest'],
+        ['service' => 'worker', 'policy' => 'always', 'image' => 'acme/app:latest'],
+    ])->and($compose->pullPoliciesOverBuild(['POLICY' => 'build', 'IMAGE' => 'registry.test:5000/acme/app']))->toBe([
+        ['service' => 'app', 'policy' => 'build', 'image' => 'registry.test:5000/acme/app:latest'],
+    ]);
+});
+
 it('flags publishes that listen on every interface', function (): void {
     expect(ComposeFile::load(fixturesPath('Plain/Meilisearch/docker-compose.yml'))->publicPublishes())->toBe([])
         ->and(ComposeFile::load(fixturesPath('Plain/Mailpit/compose.yaml'))->publicPublishes())

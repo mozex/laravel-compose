@@ -25,6 +25,7 @@ The doctor is a preflight. Every check is something that broke a real deploy onc
 - `docker compose config` accepts the file with the environment the stack would write. The env is passed through a temporary file, so the stack directory isn't touched. A stack with nothing to write is checked with its own env file.
 - No publish listens on every interface. Addresses given as `${BIND:-...}` are resolved through the stack's environment first (or the hand-written env file, for a stack with nothing to write), so a variable that resolves to `127.0.0.1` passes.
 - For remote daemons, no bind mounts.
+- For stacks whose `build()` returns true, no pull policy replaces what the build step made. `pull_policy: always` or `refresh` on a service whose `image:` the stack builds (the building service or another one using the same name) makes `up` start the registry copy instead. `pull_policy: build` on a building service builds it again after the old containers are removed.
 - For local daemons with a link directory, the link can be created or refreshed by this user. When it can't, the warning names the directory that needs `chown` and the user to give it to. A directory with content sitting at the link path gets its own warning, since the redeploy leaves it alone; so does one this user can't read.
 - The env file would be ignored by git, when the stack lives in a repository.
 - Disabled stacks and a disabled master switch are noted, so "why didn't it deploy" has an answer.
